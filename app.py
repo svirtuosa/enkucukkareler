@@ -1,9 +1,19 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
+import re
 
 st.set_page_config(page_title="EKK vs QR Simülasyonu", layout="wide")
 
+# --- SESSION STATE (Butonların metin kutusuna yazabilmesi için gerekli hafıza) ---
+if "fonk_metni" not in st.session_state:
+    st.session_state.fonk_metni = "x^2 + np.sin(x)"
+
+def ekle_metin(ek):
+    """Butona basıldığında metin kutusunun sonuna seçilen ifadeyi ekler."""
+    st.session_state.fonk_metni += ek
+
+# --- BAŞLIK ---
 st.title("📈 Polinom Uydurma: EKK vs QR")
 st.markdown("Aşağıdan veri giriş modunu seçin ve polinom derecesini ayarlayarak EKK'nın yüksek derecelerdeki çöküşünü izleyin.")
 
@@ -21,62 +31,62 @@ y_verisi = np.array([])
 
 # --- MOD 1: MANUEL NOKTALAR ---
 if mod == "Manuel Noktalar (Barlar)":
-    # Kullanıcı kaç nokta istiyorsa onu seçiyor
     nokta_sayisi = st.slider("Kaç Adet Nokta (Değişken) Olsun?", min_value=3, max_value=15, value=6)
-    
     st.markdown("**Noktaların Y Değerlerini Ayarlayın:**")
     
-    # Seçilen nokta sayısı kadar yan yana dinamik kolon oluştur
     kolonlar = st.columns(nokta_sayisi)
     y_verisi_list = []
     x_verisi = np.arange(nokta_sayisi, dtype=float)
     
     for i in range(nokta_sayisi):
         with kolonlar[i]:
-            # Varsayılan başlangıç değeri (hoş bir eğri oluşturması için sinüs kullandık)
             varsayilan = float(np.sin(i) * 5 + 5)
-            
-            # label_visibility="collapsed" ile kaydırıcıların başlıklarını gizleyip temiz yapıyoruz
-            val = st.slider(
-                f"X={i}", 
-                min_value=-10.0, 
-                max_value=20.0, 
-                value=varsayilan, 
-                step=0.5, 
-                label_visibility="collapsed"
-            )
+            val = st.slider(f"X={i}", min_value=-10.0, max_value=20.0, value=varsayilan, step=0.5, label_visibility="collapsed")
             y_verisi_list.append(val)
-            # Altlarına minik X etiketleri yazıyoruz
             st.markdown(f"<div style='text-align: center; color: gray; font-size:14px; font-weight:bold;'>X={i}</div>", unsafe_allow_html=True)
             
     y_verisi = np.array(y_verisi_list)
 
-# --- MOD 2: MATEMATİKSEL FONKSİYON ---
+# --- MOD 2: MATEMATİKSEL FONKSİYON VE BUTONLAR ---
 else:
     with st.container(border=True):
         st.markdown("**Fonksiyon Ayarları**")
-        f_col1, f_col2, f_col3 = st.columns([2, 1, 1])
         
-        with f_col1:
-            fonksiyon_metni = st.text_input("f(x) =", value="np.sin(x) * 5 + x^2")
-            st.caption("Örn: np.sin(x), np.cos(x), x^2")
-        with f_col2:
-            f_nokta = st.number_input("Oluşturulacak Nokta Sayısı", min_value=10, max_value=200, value=50)
-        with f_col3:
-            gurultu = st.slider("Gürültü (Noise)", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
+        # Metin kutusu (session_state'e bağlı)
+        st.text_input("f(x) =", key="fonk_metni")
+        
+        # HIZLI EKLEME BUTONLARI
+        st.caption("Hızlı Ekleme Butonları:")
+        b1, b2, b3, b4, b5, b6, b7, b8, _ = st.columns([1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 2])
+        
+        b1.button("x²", on_click=ekle_metin, args=("x^2",))
+        b2.button("x³", on_click=ekle_metin, args=("x^3",))
+        b3.button("x⁴", on_click=ekle_metin, args=("x^4",))
+        b4.button("x⁵", on_click=ekle_metin, args=("x^5",))
+        b5.button(" + ", on_click=ekle_metin, args=(" + ",))
+        b6.button("sin(x)", on_click=ekle_metin, args=("np.sin(x)",))
+        b7.button("cos(x)", on_click=ekle_metin, args=("np.cos(x)",))
+        b8.button("exp(x)", on_click=ekle_metin, args=("np.exp(x)",))
+        
+        st.write("") # Boşluk
+        f_nokta = st.number_input("Grafikte Çizilecek Nokta Sayısı (Çözünürlük)", min_value=10, max_value=200, value=50)
             
     x_verisi = np.linspace(-5, 5, f_nokta)
     
-    # ^ işaretini Python'un anlayacağı ** işaretine çeviriyoruz
-    guvenli_fonksiyon = fonksiyon_metni.replace("^", "**")
+    # --- ARKA PLAN DÜZELTMELERİ (Kullanıcı Dostu Python) ---
+    # 1. Kullanıcının ^ işaretini Python'un anladığı ** işaretine çevir
+    guvenli_fonksiyon = st.session_state.fonk_metni.replace("^", "**")
+    
+    # 2. "4x" yazılmışsa bunu "4*x" veya "4np.sin" yazılmışsa "4*np.sin" yap (Regex ile gizli çarpım eklentisi)
+    guvenli_fonksiyon = re.sub(r'(\d)\s*(x|np)', r'\1*\2', guvenli_fonksiyon)
     
     try:
-        y_fonksiyon = eval(guvenli_fonksiyon, {"np": np, "x": x_verisi})
-        np.random.seed(42)
-        y_fonksiyon += np.random.normal(0, gurultu, f_nokta)
-        y_verisi = y_fonksiyon
+        y_verisi = eval(guvenli_fonksiyon, {"np": np, "x": x_verisi})
+        # Eğer y_verisi sabit bir sayı çıkarsa (örneğin sadece "5" yazıldıysa) array'e çevir
+        if isinstance(y_verisi, (int, float)):
+            y_verisi = np.full_like(x_verisi, y_verisi)
     except Exception:
-        st.error("⚠️ Geçersiz fonksiyon! Lütfen np.sin(x) veya x^2 gibi bir format kullanın.")
+        st.error("⚠️ Geçersiz fonksiyon! Lütfen denkleminizi kontrol edin.")
         y_verisi = np.zeros(f_nokta)
 
 # --- HESAPLAMA VE GÜVENLİK KONTROLÜ ---
@@ -101,7 +111,7 @@ beta_qr = np.linalg.solve(R, Q.T @ y_verisi)
 # --- GÖRSELLEŞTİRME ---
 fig = go.Figure()
 
-# Noktalar (Elmas şeklinde)
+# Ham Veri Noktaları
 fig.add_trace(go.Scatter(
     x=x_verisi, y=y_verisi, mode='markers', 
     marker=dict(symbol='diamond', size=8, color='white', line=dict(width=1.5, color='black')), 
