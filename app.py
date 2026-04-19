@@ -3,36 +3,52 @@ import numpy as np
 import plotly.graph_objects as go
 import re
 
+# --- SAYFA VE HAFIZA AYARLARI ---
 st.set_page_config(page_title="EKK vs QR Simülasyonu", layout="wide")
 
-# --- SESSION STATE (Butonların metin kutusuna yazabilmesi için gerekli hafıza) ---
 if "fonk_metni" not in st.session_state:
     st.session_state.fonk_metni = "x^2 + np.sin(x)"
 
 def ekle_metin(ek):
-    """Butona basıldığında metin kutusunun sonuna seçilen ifadeyi ekler."""
     st.session_state.fonk_metni += ek
 
 # --- BAŞLIK ---
 st.title("📈 Polinom Uydurma: EKK vs QR")
-st.markdown("Aşağıdan veri giriş modunu seçin ve polinom derecesini ayarlayarak EKK'nın yüksek derecelerdeki çöküşünü izleyin.")
+st.markdown("Bu laboratuvarda Klasik EKK'nın yüksek derecelerdeki çöküşünü ve QR ayrışımının kararlılığını test edeceğiz.")
+st.write("---")
 
-# --- ÜST AYARLAR ---
-col_derece, col_mod, bosluk = st.columns([1, 1, 2])
-with col_derece:
-    derece = st.slider("Polinom Derecesi:", min_value=1, max_value=15, value=3)
-with col_mod:
-    mod = st.radio("Veri Giriş Yöntemi:", ["Manuel Noktalar (Barlar)", "Matematiksel Fonksiyon"])
+# ==========================================
+# ADIM 1: KULLANICIYA YÖNTEM SEÇTİRME
+# ==========================================
+st.subheader("Adım 1: Veri Giriş Yöntemi")
+
+# index=None sayesinde site ilk açıldığında hiçbir şey seçili olmaz!
+mod = st.radio(
+    "Lütfen verilerinizi nasıl oluşturmak istediğinizi seçin:", 
+    ["🔢 Noktaları Manuel Belirle (Barlar ile)", "📐 Matematiksel Fonksiyon Yaz"],
+    index=None,
+    horizontal=True
+)
+
+# KULLANICI SEÇİM YAPANA KADAR KODU BURADA DURDUR
+if mod is None:
+    st.info("👆 Lütfen simülasyona başlamak için yukarıdan bir yöntem seçin.")
+    st.stop() # Kodun geri kalanını çalıştırmaz, ekranı temiz tutar.
 
 st.write("---")
 
+# Değişkenleri hazırlayalım
 x_verisi = np.array([])
 y_verisi = np.array([])
 
-# --- MOD 1: MANUEL NOKTALAR ---
-if mod == "Manuel Noktalar (Barlar)":
+# ==========================================
+# ADIM 2: SEÇİLEN MODA GÖRE EKRAN GÖSTERİMİ
+# ==========================================
+if mod == "🔢 Noktaları Manuel Belirle (Barlar ile)":
+    st.subheader("Adım 2: Noktaları Ayarla")
+    
     nokta_sayisi = st.slider("Kaç Adet Nokta (Değişken) Olsun?", min_value=3, max_value=15, value=6)
-    st.markdown("**Noktaların Y Değerlerini Ayarlayın:**")
+    st.markdown("**Noktaların Y Değerlerini Aşağıdaki Kaydırıcılardan Belirleyin:**")
     
     kolonlar = st.columns(nokta_sayisi)
     y_verisi_list = []
@@ -47,15 +63,12 @@ if mod == "Manuel Noktalar (Barlar)":
             
     y_verisi = np.array(y_verisi_list)
 
-# --- MOD 2: MATEMATİKSEL FONKSİYON VE BUTONLAR ---
-else:
+elif mod == "📐 Matematiksel Fonksiyon Yaz":
+    st.subheader("Adım 2: Fonksiyonu Tanımla")
+    
     with st.container(border=True):
-        st.markdown("**Fonksiyon Ayarları**")
-        
-        # Metin kutusu (session_state'e bağlı)
         st.text_input("f(x) =", key="fonk_metni")
         
-        # HIZLI EKLEME BUTONLARI
         st.caption("Hızlı Ekleme Butonları:")
         b1, b2, b3, b4, b5, b6, b7, b8, _ = st.columns([1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 2])
         
@@ -68,33 +81,39 @@ else:
         b7.button("cos(x)", on_click=ekle_metin, args=("np.cos(x)",))
         b8.button("exp(x)", on_click=ekle_metin, args=("np.exp(x)",))
         
-        st.write("") # Boşluk
+        st.write("") 
         f_nokta = st.number_input("Grafikte Çizilecek Nokta Sayısı (Çözünürlük)", min_value=10, max_value=200, value=50)
             
     x_verisi = np.linspace(-5, 5, f_nokta)
     
-    # --- ARKA PLAN DÜZELTMELERİ (Kullanıcı Dostu Python) ---
-    # 1. Kullanıcının ^ işaretini Python'un anladığı ** işaretine çevir
+    # Arka plan düzeltmeleri (Kullanıcının yazdığını Python'a çevir)
     guvenli_fonksiyon = st.session_state.fonk_metni.replace("^", "**")
-    
-    # 2. "4x" yazılmışsa bunu "4*x" veya "4np.sin" yazılmışsa "4*np.sin" yap (Regex ile gizli çarpım eklentisi)
     guvenli_fonksiyon = re.sub(r'(\d)\s*(x|np)', r'\1*\2', guvenli_fonksiyon)
     
     try:
         y_verisi = eval(guvenli_fonksiyon, {"np": np, "x": x_verisi})
-        # Eğer y_verisi sabit bir sayı çıkarsa (örneğin sadece "5" yazıldıysa) array'e çevir
         if isinstance(y_verisi, (int, float)):
             y_verisi = np.full_like(x_verisi, y_verisi)
     except Exception:
         st.error("⚠️ Geçersiz fonksiyon! Lütfen denkleminizi kontrol edin.")
         y_verisi = np.zeros(f_nokta)
 
-# --- HESAPLAMA VE GÜVENLİK KONTROLÜ ---
+st.write("---")
+
+# ==========================================
+# ADIM 3: POLİNOM DERECESİ VE GRAFİK EKRANI
+# ==========================================
+st.subheader("Adım 3: Polinom Uydurma ve Karşılaştırma")
+
+# Polinom derecesini artık grafiğin hemen üstüne aldık, çünkü asıl deneyi burada yapacaklar
+derece = st.slider("Uydurulacak Polinom Derecesi (EKK'nın Çöküşünü Görmek İçin Artırın):", min_value=1, max_value=15, value=3)
+
+# Güvenlik Kontrolü
 if len(x_verisi) <= derece:
-    st.warning(f"⚠️ {derece}. dereceden polinom için en az {derece + 1} nokta gereklidir. Lütfen nokta sayısını artırın veya dereceyi düşürün.")
+    st.warning(f"⚠️ {derece}. dereceden polinom için en az {derece + 1} nokta gereklidir. Lütfen yukarıdan nokta sayısını artırın veya dereceyi düşürün.")
     st.stop()
 
-# Tasarım Matrisi
+# --- MATEMATİKSEL HESAPLAMALAR ---
 A = np.vander(x_verisi, N=derece + 1, increasing=True)
 
 # Klasik EKK
@@ -111,7 +130,6 @@ beta_qr = np.linalg.solve(R, Q.T @ y_verisi)
 # --- GÖRSELLEŞTİRME ---
 fig = go.Figure()
 
-# Ham Veri Noktaları
 fig.add_trace(go.Scatter(
     x=x_verisi, y=y_verisi, mode='markers', 
     marker=dict(symbol='diamond', size=8, color='white', line=dict(width=1.5, color='black')), 
@@ -123,11 +141,9 @@ x_cizgi = np.linspace(x_min - 0.5, x_max + 0.5, 300)
 A_cizgi = np.vander(x_cizgi, N=derece + 1, increasing=True)
 
 if ekk_basarili:
-    fig.add_trace(go.Scatter(x=x_cizgi, y=A_cizgi @ beta_ekk, mode='lines', 
-                             line=dict(color='blue', width=4), name='Klasik EKK'))
+    fig.add_trace(go.Scatter(x=x_cizgi, y=A_cizgi @ beta_ekk, mode='lines', line=dict(color='blue', width=4), name='Klasik EKK'))
 
-fig.add_trace(go.Scatter(x=x_cizgi, y=A_cizgi @ beta_qr, mode='lines', 
-                         line=dict(color='indianred', width=4, dash='dash'), name='QR Ayrışımı'))
+fig.add_trace(go.Scatter(x=x_cizgi, y=A_cizgi @ beta_qr, mode='lines', line=dict(color='indianred', width=4, dash='dash'), name='QR Ayrışımı'))
 
 y_min, y_max = y_verisi.min(), y_verisi.max()
 fark = max(y_max - y_min, 1) 
