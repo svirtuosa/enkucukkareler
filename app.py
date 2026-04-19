@@ -2,31 +2,38 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 
+# Sayfa ayarları
 st.set_page_config(page_title="EKK Çöküşü vs QR", layout="wide")
+
+# Başlık ve Açıklama
 st.title("🚨 Klasik EKK'nın Çöküşü ve QR'ın Gücü")
 st.markdown("""
-Polinom derecesi (değişken sayısı) arttıkça, Klasik EKK yönteminde kullanılan $A^T A$ matrisinin 
-**kondisyon sayısı** karesi oranında büyür. Bu durum bilgisayarın yuvarlama hatalarını patlatır.
-Aşağıdaki kaydırıcıdan polinom derecesini **10 ve üzerine** çıkararak EKK'nın nasıl çöktüğünü, 
-QR ayrışımının ise nasıl kararlı kaldığını izleyin.
+Polinom derecesi arttıkça, Klasik EKK yönteminde kullanılan $A^T A$ matrisinin 
+**kondisyon sayısı** karesi oranında büyür. Bu durum bilgisayarın yuvarlama hatalarını patlatır. 
+Aşağıdaki kaydırıcıdan dereceyi artırarak EKK'nın nasıl çöktüğünü izleyin.
 """)
 
-# --- YAN MENÜ ---
-st.sidebar.header("Deney Ayarları")
-derece = st.sidebar.slider("Polinom Derecesi (Değişken Sayısı)", min_value=1, max_value=15, value=2, step=1)
+st.write("---")
+
+# --- ÜST AYAR BARI (Sol Üstte Minik Bar) ---
+# Ekranı 1'e 3 oranında bölerek slider'ı sadece sol tarafa sıkıştırıyoruz
+sol_ayar, bos_kisim = st.columns([1, 3])
+
+with sol_ayar:
+    derece = st.slider("Polinom Derecesi:", min_value=1, max_value=15, value=2, step=1)
+
+# --- MATEMATİKSEL ALTYAPI ---
 nokta_sayisi = 30
 
-# Rastgele ama belirli bir düzende veri üretelim (örneğin sinüs dalgası + gürültü)
-np.random.seed(42) # Her seferinde aynı rastgele sayılar gelsin diye
+# Rastgele veri üretimi (sinüs dalgası + gürültü)
+np.random.seed(42) 
 x_verisi = np.linspace(0, 5, nokta_sayisi)
 y_verisi = np.sin(x_verisi) + np.random.normal(0, 0.2, nokta_sayisi)
 
-# --- MATEMATİKSEL HESAPLAMALAR ---
-# Vandermonde Matrisi oluşturuyoruz (Polinom için A matrisi: [1, x, x^2, x^3...])
+# Vandermonde Matrisi (A matrisi)
 A = np.vander(x_verisi, N=derece + 1, increasing=True)
 
-# 1. Klasik EKK Çözümü (A^T A x = A^T y)
-# Not: Derece çok arttığında bu işlem "Singular Matrix" (Tekil Matris) hatası verebilir.
+# 1. Klasik EKK Çözümü
 try:
     beta_ekk = np.linalg.inv(A.T @ A) @ A.T @ y_verisi
     ekk_basarili = True
@@ -45,7 +52,6 @@ fig = go.Figure()
 fig.add_trace(go.Scatter(x=x_verisi, y=y_verisi, mode='markers', 
                          marker=dict(size=8, color='black'), name='Gerçek Veriler'))
 
-# Çizgi için sık x değerleri
 x_cizgi = np.linspace(0, 5, 200)
 A_cizgi = np.vander(x_cizgi, N=derece + 1, increasing=True)
 
@@ -60,12 +66,14 @@ y_cizgi_qr = A_cizgi @ beta_qr
 fig.add_trace(go.Scatter(x=x_cizgi, y=y_cizgi_qr, mode='lines', 
                          line=dict(color='blue', width=4, dash='dot'), name='QR Ayrışımı (Kararlı)'))
 
-# Grafiğin y eksenini sabitleyelim ki çöküş net görülsün (EKK uzaya fırlayabilir)
+# Grafik Ayarları
 fig.update_layout(
     title=f"Derece: {derece} | EKK vs QR", 
     xaxis_title="X", 
     yaxis_title="Y",
-    yaxis_range=[-2, 3] # Y ekseni dışına taşan saçmalamaları kesmek için
+    yaxis_range=[-2, 3], # Sapmaları net görmek için ekseni kilitledik
+    margin=dict(t=40) 
 )
 
+# Grafiği ekrana bas
 st.plotly_chart(fig, use_container_width=True)
