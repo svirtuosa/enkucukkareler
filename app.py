@@ -7,7 +7,7 @@ import re
 st.set_page_config(page_title="EKK vs QR Simülasyonu", layout="wide")
 
 if "fonk_metni" not in st.session_state:
-    st.session_state.fonk_metni = "x^2 + np.sin(x)"
+    st.session_state.fonk_metni = "np.sin(x) + np.cos(2*x)"
 
 def ekle_metin(ek):
     st.session_state.fonk_metni += ek
@@ -22,7 +22,6 @@ st.write("---")
 # ==========================================
 st.subheader("Adım 1: Veri Giriş Yöntemi")
 
-# index=None sayesinde site ilk açıldığında hiçbir şey seçili olmaz!
 mod = st.radio(
     "Lütfen verilerinizi nasıl oluşturmak istediğinizi seçin:", 
     ["🔢 Noktaları Manuel Belirle (Barlar ile)", "📐 Matematiksel Fonksiyon Yaz"],
@@ -30,14 +29,12 @@ mod = st.radio(
     horizontal=True
 )
 
-# KULLANICI SEÇİM YAPANA KADAR KODU BURADA DURDUR
 if mod is None:
     st.info("👆 Lütfen simülasyona başlamak için yukarıdan bir yöntem seçin.")
-    st.stop() # Kodun geri kalanını çalıştırmaz, ekranı temiz tutar.
+    st.stop()
 
 st.write("---")
 
-# Değişkenleri hazırlayalım
 x_verisi = np.array([])
 y_verisi = np.array([])
 
@@ -86,7 +83,6 @@ elif mod == "📐 Matematiksel Fonksiyon Yaz":
             
     x_verisi = np.linspace(-5, 5, f_nokta)
     
-    # Arka plan düzeltmeleri (Kullanıcının yazdığını Python'a çevir)
     guvenli_fonksiyon = st.session_state.fonk_metni.replace("^", "**")
     guvenli_fonksiyon = re.sub(r'(\d)\s*(x|np)', r'\1*\2', guvenli_fonksiyon)
     
@@ -105,10 +101,8 @@ st.write("---")
 # ==========================================
 st.subheader("Adım 3: Polinom Uydurma ve Karşılaştırma")
 
-# Polinom derecesini artık grafiğin hemen üstüne aldık, çünkü asıl deneyi burada yapacaklar
-derece = st.slider("Uydurulacak Polinom Derecesi (EKK'nın Çöküşünü Görmek İçin Artırın):", min_value=1, max_value=15, value=3)
+derece = st.slider("Uydurulacak Polinom Derecesi (EKK'nın Çöküşünü Görmek İçin Artırın):", min_value=1, max_value=20, value=3)
 
-# Güvenlik Kontrolü
 if len(x_verisi) <= derece:
     st.warning(f"⚠️ {derece}. dereceden polinom için en az {derece + 1} nokta gereklidir. Lütfen yukarıdan nokta sayısını artırın veya dereceyi düşürün.")
     st.stop()
@@ -119,13 +113,32 @@ A = np.vander(x_verisi, N=derece + 1, increasing=True)
 # Klasik EKK
 try:
     beta_ekk = np.linalg.inv(A.T @ A) @ A.T @ y_verisi
+    y_tahmin_ekk = A @ beta_ekk
+    mse_ekk = np.mean((y_verisi - y_tahmin_ekk)**2) # Hata Skoru Hesaplama
     ekk_basarili = True
 except np.linalg.LinAlgError:
     ekk_basarili = False
+    mse_ekk = float('inf')
 
 # QR Ayrışımı
 Q, R = np.linalg.qr(A)
 beta_qr = np.linalg.solve(R, Q.T @ y_verisi)
+y_tahmin_qr = A @ beta_qr
+mse_qr = np.mean((y_verisi - y_tahmin_qr)**2) # Hata Skoru Hesaplama
+
+# --- HATA SKORU GÖSTERİMİ (MİNİK KUTULAR) ---
+# Bilimsel gösterim (.2e) kullanıyoruz çünkü EKK çöktüğünde sayılar milyarlara ulaşacak
+st.markdown("**Hata Skoru Karşılaştırması (MSE)**")
+kutu1, kutu2, bosluk = st.columns([1, 1, 2])
+
+with kutu1:
+    if ekk_basarili:
+        st.metric(label="Klasik EKK Hatası", value=f"{mse_ekk:.2e}")
+    else:
+        st.metric(label="Klasik EKK Hatası", value="SİSTEM ÇÖKTÜ")
+
+with kutu2:
+    st.metric(label="QR Ayrışımı Hatası", value=f"{mse_qr:.2e}")
 
 # --- GÖRSELLEŞTİRME ---
 fig = go.Figure()
