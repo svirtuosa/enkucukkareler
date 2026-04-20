@@ -2,8 +2,66 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 import re
+import base64  # Yeni eklenen: Arka plan görselini CSS'ye gömmek için gerekli
 
-# --- SAYFA AYARLARI ---
+# --- ARKA PLAN GÖRSELİNİ CSS FİLTRESİ İLE AYARLAMA İŞLEVİ ---
+def set_dark_background_css(image_path, brightness=0.25): # brightness 0.0-1.0 arası, 0.25 = %75 koyu
+    try:
+        # Görseli base64'e çevir
+        with open(image_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        
+        # CSS kodu oluştur (brightness filtresi ile)
+        #data-testid="stAppViewContainer" ve .main > div > .block-container kısımları Streamlit'in yapısıdır.
+        page_bg_css = f"""
+        <style>
+        [data-testid="stAppViewContainer"] > .main {{
+            background-image: url("data:image/png;base64,{encoded_string}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            filter: brightness({brightness});
+        }}
+        
+        [data-testid="stAppViewContainer"] > .main > div {{
+            position: relative; /* İçeriğin filtreden etkilenmemesi için */
+            z-index: 1;
+        }}
+        
+        /* Grafiklerin ve metinlerin koyu arka plan üzerinde daha net görünmesi için renk ayarları */
+        .stMetric, .stPlotlyChart, .stDataFrame, .stAlert, .stText, h1, h2, h3, h4, h5, h6, p, label {{
+            color: #f0f2f6 !important; /* Açık gri/beyaz metin */
+        }}
+        
+        .stSlider, .stRadio, .stTextInput, .stNumberInput, .stButton, .st-bo, .st-c2 {{
+            background-color: rgba(30, 34, 42, 0.7); /* Koyu, yarı şeffaf kutular */
+            color: #f0f2f6 !important;
+            border-radius: 8px;
+            padding: 5px;
+        }}
+        
+        .stExpander, .stTabs {{
+            background-color: rgba(30, 34, 42, 0.5); /* Daha koyu, yarı şeffaf sekmeler */
+            border-radius: 8px;
+        }}
+        
+        .stMarkdown div p {{
+            color: #f0f2f6 !important;
+        }}
+        
+        /* Plotly grafiklerinin arka planını şeffaf yap */
+        .js-plotly-plot .plotly .bg {{
+            fill: transparent !important;
+        }}
+        </style>
+        """
+        st.markdown(page_bg_css, unsafe_allow_html=True)
+        
+    except FileNotFoundError:
+        st.error(f"⚠️ Arka plan görseli bulunamadı: {image_path}. Lütfen dosya yolunu kontrol edin.")
+
+# --- SAYFA VE HAFIZA AYARLARI ---
 st.set_page_config(page_title="EKK vs QR Simülasyonu", layout="wide")
 
 # Fonksiyon girişi için buton hafızasını hazırlıyoruz
@@ -12,6 +70,11 @@ if "fonk_metni" not in st.session_state:
 
 def ekle_metin(ek):
     st.session_state.fonk_metni += ek
+
+# --- ARKA PLANI AYARLA (Kodun başına ekle) ---
+# Görsel dosyasının adı image_13.png olarak varsayıyoruz, projenin kök klasöründe olmalı.
+# brightness=0.25 varsayıyoruz, bu %75 koyulaştırma demektir.
+set_dark_background_css("image_13.png", brightness=0.2) # Daha da koyu olsun (%80)
 
 # --- BAŞLIK VE GİRİŞ ---
 st.title("📈 Polinom Uydurma: EKK vs QR")
@@ -114,19 +177,37 @@ mse_qr = np.mean((y_verisi - (A @ beta_qr))**2)
 
 # --- SKOR KARTLARI ---
 k1, k2, _ = st.columns([1, 1, 2])
-k1.metric("Klasik EKK Hatası (MSE)", f"{mse_ekk:.2e}" if ekk_basarili else "ÇÖKTÜ")
-k2.metric("QR Ayrışımı Hatası (MSE)", f"{mse_qr:.2e}")
+# Renkleri açık gri yapmak için st.markdown ile manuel stil uyguluyoruz
+k1.markdown(f'<p style="color:#f0f2f6;">Klasik EKK Hatası (MSE)</p><p style="color:#f0f2f6; font-size:30px; font-weight:bold;">{mse_ekk:.2e}</p>' if ekk_basarili else '<p style="color:#f0f2f6;">Klasik EKK Hatası (MSE)</p><p style="color:red; font-size:30px; font-weight:bold;">ÇÖKTÜ</p>', unsafe_allow_html=True)
+k2.markdown(f'<p style="color:#f0f2f6;">QR Ayrışımı Hatası (MSE)</p><p style="color:#f0f2f6; font-size:30px; font-weight:bold;">{mse_qr:.2e}</p>', unsafe_allow_html=True)
+#st.metric(label="...", value="...") komutu bu metin stiliyle uyumsuz olduğu için markdown kullandım.
 
 # --- GRAFİK ---
 fig = go.Figure()
+# Noktalar (Elmas şeklinde)
 fig.add_trace(go.Scatter(x=x_verisi, y=y_verisi, mode='markers', marker=dict(symbol='diamond', size=8, color='white', line=dict(width=1.5, color='black')), name='Veri'))
 x_c = np.linspace(x_verisi.min()-0.5, x_verisi.max()+0.5, 300)
 A_c = np.vander(x_c, N=derece + 1, increasing=True)
 
 if ekk_basarili:
-    fig.add_trace(go.Scatter(x=x_c, y=A_c @ beta_ekk, mode='lines', line=dict(color='blue', width=4), name='EKK'))
-fig.add_trace(go.Scatter(x=x_c, y=A_c @ beta_qr, mode='lines', line=dict(color='indianred', width=4, dash='dash'), name='QR'))
+    # EKK Doğrusu (Mavi)
+    fig.add_trace(go.Scatter(x=x_c, y=A_c @ beta_ekk, mode='lines', line=dict(color='#1f77b4', width=4), name='EKK'))
+# QR Doğrusu (Kırmızı kesik)
+fig.add_trace(go.Scatter(x=x_c, y=A_c @ beta_qr, mode='lines', line=dict(color='#d62728', width=4, dash='dash'), name='QR'))
 
+# Eksen sınırlarını ayarla
 f = max(y_verisi.max() - y_verisi.min(), 1)
-fig.update_layout(yaxis_range=[y_verisi.min()-f*0.3, y_verisi.max()+f*0.3], template="plotly_white", height=500)
+# Arka planı şeffaf ve metinleri açık gri yap
+fig.update_layout(
+    yaxis_range=[y_verisi.min()-f*0.3, y_verisi.max()+f*0.3], 
+    template="plotly_white", 
+    height=500,
+    xaxis=dict(gridcolor='rgba(240, 242, 246, 0.2)', title=dict(text='X Ekseni', font=dict(color='#f0f2f6'))),
+    yaxis=dict(gridcolor='rgba(240, 242, 246, 0.2)', title=dict(text='Y', font=dict(color='#f0f2f6'))),
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    font=dict(color='#f0f2f6'),
+    legend=dict(font=dict(color='#f0f2f6'))
+)
+
 st.plotly_chart(fig, use_container_width=True)
