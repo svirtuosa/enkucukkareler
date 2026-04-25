@@ -1,36 +1,66 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
+import re
 
 # --- Sayfa Yapılandırması ---
-# 'wide' layout ile matematiksel matrisler ve grafikler için geniş bir alan açıyoruz.
 st.set_page_config(page_title="EKK ve QR Analizi | Synapse 5", layout="wide")
 
-# --- Başlık ve Giriş ---
+# --- Başlık ---
 st.title("📐 En Küçük Kareler (EKK) ve QR Ayrışımı")
-st.markdown("**Synapse 5 Proje Grubu** | Dinamik Regresyon Hesaplama Motoru")
+st.markdown("Dinamik Regresyon Hesaplama Motoru")
 st.divider()
 
-# --- Adım 1: Veri Girişi ---
-st.header("1. Veri Noktalarının Girişi")
-st.write("Analiz edilecek X ve Y veri noktalarını aşağıdaki tablodan düzenleyebilirsiniz. Tablonun altına tıklayarak yeni satırlar ekleyebilirsiniz.")
-
-# Sistemin boş kalmaması için varsayılan bir başlangıç veri seti oluşturuyoruz
-varsayilan_veri = pd.DataFrame({
-    "X": [1.0, 2.0, 3.0, 4.0, 5.0],
-    "Y": [2.1, 4.0, 6.2, 8.1, 10.5]
-})
-
-# st.data_editor ile kullanıcıya tabloyu düzenleme yetkisi veriyoruz
-duzenlenen_veri = st.data_editor(
-    varsayilan_veri, 
-    num_rows="dynamic", # Dinamik satır ekleme özelliği
-    use_container_width=True # Tablonun ekrana şık bir şekilde yayılması için
+# --- Veri Giriş Yöntemi Seçimi ---
+st.header("1. Veri Hazırlama")
+veri_modu = st.radio(
+    "Veri giriş yöntemini seçiniz:",
+    ["📐 Matematiksel Fonksiyon Yaz", "🔢 Noktaları Manuel Belirle"],
+    horizontal=True
 )
 
-# Tablodaki verileri, ileride yapacağımız matris işlemleri için arka planda Numpy dizilerine çekiyoruz
-x_noktalari = duzenlenen_veri["X"].to_numpy()
-y_noktalari = duzenlenen_veri["Y"].to_numpy()
+x_verisi = np.array([])
+y_verisi = np.array([])
 
-# İşlemin başarılı olduğunu gösteren küçük bir bildirim
-st.success(f"Sisteme {len(x_noktalari)} adet veri noktası başarıyla yüklendi ve analize hazır!")
+# --- MOD 1: FONKSİYON GİRİŞİ ---
+if veri_modu == "📐 Matematiksel Fonksiyon Yaz":
+    with st.container(border=True):
+        st.markdown("### Fonksiyon Tanımlama")
+        fonksiyon_metni = st.text_input("f(x) formülünü yazın:", value="np.sin(x) + x**2")
+        st.caption("İpucu: 'np.sin(x)', 'x**2', 'np.exp(x)' gibi ifadeler kullanabilirsiniz.")
+        
+        col_n, col_range = st.columns(2)
+        with col_n:
+            nokta_sayisi = st.number_input("Oluşturulacak Nokta Sayısı:", 5, 500, 50)
+        with col_range:
+            aralik = st.slider("X Ekseni Aralığı:", -10.0, 10.0, (-5.0, 5.0))
+        
+        # Matematiksel hesaplama
+        x_verisi = np.linspace(aralik[0], aralik[1], nokta_sayisi)
+        try:
+            # Kullanıcının metnini güvenli bir şekilde değerlendiriyoruz
+            y_verisi = eval(fonksiyon_metni, {"np": np, "x": x_verisi})
+        except Exception as e:
+            st.error(f"Denklem hatası: {e}")
+            y_verisi = np.zeros(nokta_sayisi)
+
+# --- MOD 2: MANUEL NOKTA GİRİŞİ ---
+else:
+    with st.container(border=True):
+        st.markdown("### Manuel Nokta Girişi")
+        n_manuel = st.number_input("Kaç adet nokta gireceksiniz?", 2, 20, 5)
+        
+        # Yan yana dikey barlar (slider) oluşturarak interaktif giriş sağlıyoruz
+        st.write("Noktaların Y değerlerini ayarlayın (X değerleri 0'dan başlar):")
+        y_list = []
+        kolonlar = st.columns(n_manuel)
+        for i in range(n_manuel):
+            with kolonlar[i]:
+                y_val = st.slider(f"X={i}", -10.0, 20.0, float(i*2), key=f"sl_{i}")
+                y_list.append(y_val)
+        
+        x_verisi = np.arange(n_manuel, dtype=float)
+        y_verisi = np.array(y_list)
+
+# --- Kontrol ve Onay ---
+if len(x_verisi) > 0:
+    st.info(f"Sistem hazır: {len(x_verisi)} adet veri noktası oluşturuldu.")
