@@ -1,536 +1,522 @@
-"""
-EKK vs QR Ayrışımı — Karşılaştırmalı Hesaplama Motoru
-Matematik Bitirme Projesi · Streamlit + NumPy + Plotly
-"""
+import base64
+from pathlib import Path
 
-import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import base64, os
+import streamlit as st
 
-# ──────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="EKK vs QR", page_icon="∑", layout="wide", initial_sidebar_state="expanded")
 
-# ──────────────────────────────────────────────────────────────────
-# TEMA
-# ──────────────────────────────────────────────────────────────────
-def get_b64(path):
-    if os.path.exists(path):
-        with open(path,"rb") as f: return base64.b64encode(f.read()).decode()
-    return None
+# ============================================================
+#  Sayfa Ayarları
+# ============================================================
 
-bg = get_b64("image_13.PNG")
-bg_css = (
-    f".stApp::before{{content:'';position:fixed;inset:0;"
-    f"background:url('data:image/png;base64,{bg}') center/cover no-repeat;"
-    f"filter:brightness(0.18);z-index:-1;}}.stApp{{background:transparent;}}"
-    if bg else
-    ".stApp{background:linear-gradient(135deg,#06080f 0%,#0b1220 50%,#110820 100%);}"
+st.set_page_config(
+    page_title="EKK vs QR Ayrışımı",
+    page_icon="📐",
+    layout="wide"
 )
 
-st.markdown(f"""<style>
-{bg_css}
 
-/* Base */
-html,body,[class*="css"] {{ color:#f1f5f9!important; font-family:'Segoe UI',sans-serif; }}
+# ============================================================
+#  CSS ve Arka Plan
+# ============================================================
 
-/* Hero */
-.hero {{ text-align:center; padding:1.2rem 0 0.4rem; }}
-.hero h1 {{
-    font-size:2.2rem; font-weight:800; margin:0;
-    background:linear-gradient(90deg,#818cf8,#c084fc,#38bdf8);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-}}
-.hero p {{ color:#94a3b8; font-size:.95rem; margin:.3rem 0 0; }}
+def set_background(image_path: str = "image_13.PNG") -> None:
+    path = Path(image_path)
 
-/* Section header */
-.sec-header {{
-    font-size:1.05rem; font-weight:700; color:#c4b5fd;
-    border-left:3px solid #7c3aed; padding-left:.6rem;
-    margin:1.4rem 0 .8rem;
-}}
+    if path.exists():
+        encoded = base64.b64encode(path.read_bytes()).decode()
+        background_css = f"""
+        .stApp {{
+            background:
+                linear-gradient(rgba(0,0,0,0.80), rgba(0,0,0,0.80)),
+                url("data:image/png;base64,{encoded}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        """
+    else:
+        background_css = """
+        .stApp {
+            background: linear-gradient(135deg, #0f172a, #020617);
+        }
+        """
 
-/* Card */
-.card {{
-    background:rgba(12,15,40,.88); border:1px solid rgba(99,102,241,.3);
-    border-radius:12px; padding:1.1rem 1.3rem; margin-bottom:.9rem;
-}}
+    st.markdown(
+        f"""
+        <style>
+        {background_css}
 
-/* Sidebar */
-[data-testid="stSidebar"] {{ background:rgba(6,8,20,.92)!important; border-right:1px solid rgba(99,102,241,.25); }}
-[data-testid="stSidebar"] * {{ color:#e2e8f0!important; }}
-[data-testid="stSidebar"] .stMarkdown h2 {{ color:#a5b4fc!important; font-size:1rem!important; }}
+        html, body, [class*="css"] {{
+            color: #f1f5f9;
+        }}
 
-/* Butonlar */
-.stButton>button {{
-    background:linear-gradient(135deg,#4f46e5,#7c3aed)!important;
-    color:#fff!important; border:none!important; border-radius:8px!important;
-    font-weight:600!important; width:100%;
-}}
+        h1, h2, h3, h4 {{
+            color: #ffffff;
+        }}
 
-/* Inputs */
-.stSelectbox>div>div,
-.stTextInput>div>div>input,
-.stTextArea textarea {{
-    background:rgba(12,15,40,.90)!important;
-    border:1px solid rgba(99,102,241,.45)!important;
-    border-radius:7px!important; color:#f1f5f9!important;
-}}
+        .stButton > button {{
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 12px;
+            padding: 0.6rem 1.2rem;
+            transition: 0.3s;
+        }}
 
-/* Slider */
-[data-testid="stSlider"]>div>div>div {{ background:linear-gradient(90deg,#4f46e5,#7c3aed)!important; }}
+        .stButton > button:hover {{
+            background: rgba(255, 255, 255, 0.25);
+            border-color: white;
+        }}
 
-/* Tabs */
-[data-testid="stTabs"] {{
-    background:rgba(10,12,32,.85); border-radius:10px;
-    border:1px solid rgba(99,102,241,.22); padding:.25rem .4rem 0;
-}}
-[data-testid="stTabs"] button {{ color:#64748b!important; font-weight:600; font-size:.88rem; }}
-[data-testid="stTabs"] button[aria-selected="true"] {{ color:#a78bfa!important; border-bottom:2px solid #a78bfa!important; }}
-[data-testid="stTabsContent"] {{
-    background:rgba(8,10,30,.96)!important;
-    border:1px solid rgba(99,102,241,.22);
-    border-radius:0 0 10px 10px; padding:1.1rem!important;
-}}
-[data-testid="stTabsContent"] * {{ color:#e2e8f0!important; }}
+        .stSelectbox, .stSlider, .stNumberInput, .stDataFrame {{
+            background: rgba(15, 23, 42, 0.55);
+            border-radius: 14px;
+            padding: 0.5rem;
+        }}
 
-/* LaTeX */
-.katex,.katex * {{ color:#e0e7ff!important; font-size:.98em!important; }}
-.stLatex {{
-    background:rgba(15,18,50,.95)!important;
-    border:1px solid rgba(99,102,241,.35)!important;
-    border-radius:8px; padding:.75rem 1rem!important; margin:.35rem 0!important;
-}}
+        div[data-testid="stMetric"] {{
+            background: rgba(15, 23, 42, 0.70);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 16px;
+            padding: 1rem;
+        }}
 
-/* Metrik */
-[data-testid="stMetric"] {{
-    background:rgba(12,15,42,.90); border:1px solid rgba(99,102,241,.30);
-    border-radius:10px; padding:.7rem 1rem;
-}}
-[data-testid="stMetricValue"] {{ color:#c7d2fe!important; font-size:1.15rem!important; font-weight:700!important; }}
-[data-testid="stMetricLabel"] {{ color:#818cf8!important; font-size:.78rem!important; }}
+        div[data-testid="stTabs"] {{
+            background: rgba(15, 23, 42, 0.55);
+            border-radius: 16px;
+            padding: 1rem;
+        }}
 
-/* Alerts */
-[data-testid="stInfo"]    {{ background:rgba(56,189,248,.10)!important; border-color:#38bdf8!important; }}
-[data-testid="stSuccess"] {{ background:rgba(52,211,153,.10)!important; border-color:#34d399!important; }}
-[data-testid="stWarning"] {{ background:rgba(251,191,36,.10)!important; border-color:#fbbf24!important; }}
-[data-testid="stError"]   {{ background:rgba(248,113,113,.13)!important; border-color:#f87171!important; }}
-[data-testid="stInfo"] *,[data-testid="stSuccess"] *,[data-testid="stWarning"] *,[data-testid="stError"] * {{ color:inherit!important; }}
-
-/* Expander */
-[data-testid="stExpander"] {{
-    background:rgba(10,12,34,.90); border:1px solid rgba(99,102,241,.22); border-radius:10px;
-}}
-[data-testid="stExpander"] summary {{ color:#a78bfa!important; font-weight:600; font-size:.93rem; }}
-
-/* Matris tablosu */
-.matrix-wrap {{
-    overflow-x:auto; margin:.3rem 0;
-}}
-.matrix-wrap table {{
-    border-collapse:collapse; font-family:'Courier New',monospace;
-    font-size:.82rem; color:#e2e8f0; margin:0 auto;
-    background:rgba(10,14,45,.96);
-    border:1px solid rgba(99,102,241,.35); border-radius:6px; overflow:hidden;
-}}
-.matrix-wrap td {{
-    padding:.28rem .55rem; text-align:right;
-    border:1px solid rgba(99,102,241,.18);
-    color:#c7d2fe!important; white-space:nowrap;
-}}
-.matrix-wrap td.row-label {{
-    color:#818cf8!important; font-size:.75rem;
-    font-family:'Segoe UI',sans-serif; padding-right:.4rem; text-align:left;
-    background:rgba(15,20,55,.95); border-right:1px solid rgba(99,102,241,.35);
-}}
-.matrix-bracket {{ color:#6366f1; font-size:2rem; vertical-align:middle; user-select:none; }}
-.matrix-name {{ color:#a78bfa; font-weight:700; font-size:.9rem; margin-bottom:.3rem; }}
-
-hr {{ border-color:rgba(99,102,241,.20)!important; }}
-[data-testid="stCheckbox"] label {{ color:#cbd5e1!important; font-size:.88rem; }}
-</style>""", unsafe_allow_html=True)
+        .block-container {{
+            padding-top: 2rem;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 
-# ──────────────────────────────────────────────────────────────────
-# YARDIMCI FONKSİYONLAR
-# ──────────────────────────────────────────────────────────────────
-def render_matrix(M: np.ndarray, name: str, cap: int = 6, fmt: str = ".4g") -> str:
-    """NumPy matrisini güzel HTML tablosuna çevirir."""
-    r, c = M.shape
-    Md = M[:cap, :cap]
-    rows_html = ""
-    for i, row in enumerate(Md):
-        cells = "".join(f"<td>{v:{fmt}}</td>" for v in row)
-        rows_html += f"<tr>{cells}</tr>"
-
-    trunc_note = ""
-    if r > cap or c > cap:
-        trunc_note = f'<div style="color:#64748b;font-size:.73rem;margin-top:.2rem;text-align:center;">ilk {cap}×{cap} gösteriliyor ({r}×{c} matris)</div>'
-
-    return f"""
-    <div class="matrix-wrap">
-        <div class="matrix-name">{name}</div>
-        <table>{rows_html}</table>
-        {trunc_note}
-    </div>"""
+set_background()
 
 
-def vandermonde(x, d):
-    return np.vander(x, N=d+1, increasing=True)
+# ============================================================
+#  Yardımcı Fonksiyonlar
+# ============================================================
 
-def fit_ekk(A, y):
-    AtA = A.T @ A
-    kappa = np.linalg.cond(AtA)
-    try:    beta = np.linalg.solve(AtA, A.T @ y)
-    except: beta = np.full(A.shape[1], np.nan)
-    return beta, AtA, kappa
+def create_dataset(name: str) -> pd.DataFrame:
+    np.random.seed(42)
 
-def fit_qr(A, y):
-    Q, R = np.linalg.qr(A)
-    return np.linalg.solve(R, Q.T @ y), Q, R
+    if name == "Ev Fiyatları (Lineer)":
+        x = np.linspace(50, 250, 12)
+        y = 1200 * x + 50_000 + np.random.normal(0, 18_000, len(x))
 
-def poly_eval(beta, x):
-    return sum(beta[i]*x**i for i in range(len(beta)))
+    elif name == "Radar Sinyalleri (Dalgalı)":
+        x = np.linspace(0, 10, 18)
+        y = 3 * np.sin(1.7 * x) + 0.45 * x + np.random.normal(0, 0.35, len(x))
 
-def r2_score(y, yh):
-    tss = np.sum((y-np.mean(y))**2)
-    return 1 - np.sum((y-yh)**2)/tss if tss > 0 else 0.0
+    elif name == "Sıcaklık Değişimi":
+        x = np.linspace(1, 24, 16)
+        y = 18 + 7 * np.sin((np.pi / 12) * (x - 6)) + np.random.normal(0, 0.8, len(x))
 
-def safe_eval(expr, x_arr):
-    ns = {"x":x_arr,"np":np,"sin":np.sin,"cos":np.cos,"tan":np.tan,
-          "exp":np.exp,"log":np.log,"sqrt":np.sqrt,"abs":np.abs,
-          "pi":np.pi,"e":np.e,"sinh":np.sinh,"cosh":np.cosh,"log10":np.log10}
-    try:    return np.asarray(eval(compile(expr,"<s>","eval"),{"__builtins__":{}},ns),dtype=float)
-    except: return None
+    else:
+        x = np.arange(1, 8)
+        y = np.array([2.1, 2.9, 4.8, 7.2, 11.1, 15.3, 20.2])
+
+    return pd.DataFrame({"x": x, "y": y})
 
 
-# ──────────────────────────────────────────────────────────────────
-# VERİ SETLERİ
-# ──────────────────────────────────────────────────────────────────
-rng = np.random.RandomState(42)
-PRESETS = {
-    "🏠 Ev Fiyatları":        {"x":[50,65,80,95,110,130,150,170,200,230],"y":[120,150,175,210,240,290,340,380,450,520],"d":2,"desc":"Metrekare → Fiyat (bin ₺)"},
-    "📡 Radar Sinyalleri":    {"x":np.linspace(0,4*np.pi,18).tolist(),"y":(np.sin(np.linspace(0,4*np.pi,18))+.3*rng.randn(18)).tolist(),"d":7,"desc":"Zaman → Sinyal gücü"},
-    "🌡️ Sıcaklık (Aylık)":   {"x":list(range(1,13)),"y":[3.2,4.8,9.5,15.1,20.4,25.8,28.2,27.6,22.3,15.9,9.1,4.5],"d":5,"desc":"Ay → Ortalama °C"},
-    "✏️ Manuel Giriş":        {"x":[1,2,3,4,5,6,7],"y":[2.1,4.5,9.2,16.8,26.1,37.9,51.4],"d":3,"desc":"Kendi verilerinizi girin"},
-}
+def design_matrix(x: np.ndarray, degree: int) -> np.ndarray:
+    return np.vander(x, N=degree + 1, increasing=True)
 
 
-# ──────────────────────────────────────────────────────────────────
-# SIDEBAR
-# ──────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("## ⚙️ Kontrol Paneli")
-    st.divider()
-
-    preset_name = st.selectbox("Veri Seti", list(PRESETS.keys()), label_visibility="collapsed")
-    p = PRESETS[preset_name]
-    st.caption(f"ℹ️ {p['desc']}")
-
-    st.divider()
-    degree = st.slider("📐 Polinom Derecesi (d)", 1, 12, p["d"])
-
-    st.divider()
-    st.markdown("**Grafik**")
-    show_ekk  = st.checkbox("EKK eğrisi",        value=True)
-    show_qr   = st.checkbox("QR eğrisi",          value=True)
-    show_cust = st.checkbox("Özel denklem",        value=True)
-    show_res  = st.checkbox("Kalıntı çizgileri",   value=False)
-    show_band = st.checkbox("QR ±σ bölgesi",       value=False)
-
-    st.divider()
-    mat_cap = st.slider("Matris görüntü boyutu", 3, 8, 5)
-
-    st.divider()
-    st.caption("κ(AᵀA) > 10¹²  →  EKK güvenilmez")
+def normal_equation_solution(A: np.ndarray, y: np.ndarray) -> np.ndarray:
+    ATA = A.T @ A
+    ATy = A.T @ y
+    return np.linalg.solve(ATA, ATy)
 
 
-# ──────────────────────────────────────────────────────────────────
-# HERO
-# ──────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero">
-  <h1>∑ EKK vs QR Ayrışımı</h1>
-  <p>Karşılaştırmalı Hesaplama Motoru · Matematik Bitirme Projesi</p>
-</div>""", unsafe_allow_html=True)
-st.divider()
+def qr_solution(A: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    Q, R = np.linalg.qr(A, mode="reduced")
+    beta = np.linalg.solve(R, Q.T @ y)
+    return beta, Q, R
 
 
-# ──────────────────────────────────────────────────────────────────
-# BÖLÜM 1 — VERİ
-# ──────────────────────────────────────────────────────────────────
-st.markdown('<div class="sec-header">① Veri Seti</div>', unsafe_allow_html=True)
+def polynomial_values(beta: np.ndarray, x: np.ndarray) -> np.ndarray:
+    A_eval = design_matrix(x, len(beta) - 1)
+    return A_eval @ beta
 
-col_data, col_eq = st.columns([1.1, 1], gap="medium")
 
-with col_data:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.caption("Satır ekleyip silebilir, değerleri değiştirebilirsiniz.")
-    init_df = pd.DataFrame({"x": list(p["x"]), "y": list(p["y"])})
-    edited = st.data_editor(init_df, num_rows="dynamic", use_container_width=True,
-        column_config={
-            "x": st.column_config.NumberColumn("x (Bağımsız)", format="%.4f"),
-            "y": st.column_config.NumberColumn("y (Bağımlı)",  format="%.4f"),
-        }, key=f"de_{preset_name}")
-    st.markdown("</div>", unsafe_allow_html=True)
+def matrix_to_latex(M: np.ndarray, decimals: int = 4, max_rows: int = 10, max_cols: int = 8) -> str:
+    M = np.asarray(M)
+    rows, cols = M.shape
 
-with col_eq:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("**🧮 Özel Denklem  f(x)**")
-    st.caption("NumPy destekli: `sin(x)`, `exp(-x)`, `x**3 - 2*x`, `log(x+1)`")
-    custom_expr = st.text_input("f(x) =", value="sin(x)", label_visibility="collapsed", placeholder="örn: x**2 + sin(x)")
+    shown = M[:max_rows, :max_cols]
+    body = []
 
-    if custom_expr:
-        _t = safe_eval(custom_expr, np.array([1.,2.,3.]))
-        if _t is not None:
-            st.success(f"✅  f(1)={_t[0]:.3f}  ·  f(2)={_t[1]:.3f}  ·  f(3)={_t[2]:.3f}")
+    for row in shown:
+        body.append(" & ".join([f"{value:.{decimals}g}" for value in row]))
+
+    if rows > max_rows:
+        body.append(r"\vdots" + " & " * (shown.shape[1] - 1))
+
+    latex = r"\begin{bmatrix}" + r"\\".join(body) + r"\end{bmatrix}"
+
+    if rows > max_rows or cols > max_cols:
+        latex += r"\quad \text{(kısaltılmış gösterim)}"
+
+    return latex
+
+
+def coefficients_to_latex(beta: np.ndarray) -> str:
+    terms = []
+    for i, b in enumerate(beta):
+        if i == 0:
+            terms.append(f"{b:.5g}")
+        elif i == 1:
+            terms.append(f"{b:.5g}x")
         else:
-            st.error("❌ Geçersiz ifade.")
-            custom_expr = ""
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.info("Bu eğri grafik üzerinde **sarı** renkte gösterilir. Regresyon eğrileriyle karşılaştırın.")
-    st.markdown("</div>", unsafe_allow_html=True)
+            terms.append(f"{b:.5g}x^{i}")
+    return " + ".join(terms)
 
 
-# ── Veri hazırlama ──
-df_c = edited.dropna()
-if len(df_c) < degree + 2:
-    st.error(f"d={degree} için en az {degree+2} nokta gerekli. Veri ekleyin veya dereceyi azaltın.")
+# ============================================================
+#  Başlık
+# ============================================================
+
+st.title("📐 Klasik EKK ve QR Ayrışımı Karşılaştırmalı Hesaplama Motoru")
+
+st.markdown(
+    """
+Bu uygulama, yüksek dereceli polinom yaklaşımlarında klasik normal denklem tabanlı 
+**En Küçük Kareler (EKK)** yönteminin sayısal kararsızlığını ve **QR Ayrışımı** yönteminin 
+neden daha güvenilir olduğunu deneysel olarak gösterir.
+"""
+)
+
+
+# ============================================================
+#  Yan Panel
+# ============================================================
+
+with st.sidebar:
+    st.header("⚙️ Parametreler")
+
+    selected_dataset = st.selectbox(
+        "Hazır veri seti seç",
+        [
+            "Ev Fiyatları (Lineer)",
+            "Radar Sinyalleri (Dalgalı)",
+            "Sıcaklık Değişimi",
+            "Özel Başlangıç Verisi"
+        ]
+    )
+
+    if "active_dataset" not in st.session_state:
+        st.session_state.active_dataset = selected_dataset
+        st.session_state.data = create_dataset(selected_dataset)
+
+    if selected_dataset != st.session_state.active_dataset:
+        st.session_state.active_dataset = selected_dataset
+        st.session_state.data = create_dataset(selected_dataset)
+
+    degree = st.slider(
+        "Polinom derecesi",
+        min_value=1,
+        max_value=12,
+        value=3
+    )
+
+    show_ekk = st.checkbox("EKK eğrisini göster", value=True)
+    show_qr = st.checkbox("QR eğrisini göster", value=True)
+    show_residuals = st.checkbox("Kalıntı çizgilerini göster", value=False)
+
+    st.warning(
+        "Yüksek derece seçildiğinde Vandermonde matrisi kötü koşullu hale gelebilir."
+    )
+
+
+# ============================================================
+#  Veri Girişi
+# ============================================================
+
+st.subheader("1. Veri Giriş Katmanı")
+
+edited_data = st.data_editor(
+    st.session_state.data,
+    num_rows="dynamic",
+    use_container_width=True,
+    key="data_editor"
+)
+
+data = edited_data.dropna()
+
+if len(data) < degree + 1:
+    st.error("Seçilen polinom derecesi için yeterli veri noktası yok.")
     st.stop()
 
-x = df_c["x"].to_numpy(float)
-y = df_c["y"].to_numpy(float)
-n = len(x)
+x = data["x"].to_numpy(dtype=float)
+y = data["y"].to_numpy(dtype=float)
 
-A         = vandermonde(x, degree)
-b_ekk, AtA, kappa = fit_ekk(A, y)
-b_qr, Q, R = fit_qr(A, y)
-
-xf       = np.linspace(x.min(), x.max(), 600)
-yf_ekk   = poly_eval(b_ekk, xf)
-yf_qr    = poly_eval(b_qr,  xf)
-yh_ekk   = poly_eval(b_ekk, x)
-yh_qr    = poly_eval(b_qr,  x)
-e_ekk    = y - yh_ekk
-e_qr     = y - yh_qr
-yf_cust  = safe_eval(custom_expr, xf) if custom_expr else None
-KAPPA_T  = 1e12
+sort_idx = np.argsort(x)
+x = x[sort_idx]
+y = y[sort_idx]
 
 
-# ──────────────────────────────────────────────────────────────────
-# BÖLÜM 2 — KARARLILlIK & METRİKLER
-# ──────────────────────────────────────────────────────────────────
-st.markdown('<div class="sec-header">② Sayısal Kararlılık</div>', unsafe_allow_html=True)
+# ============================================================
+#  Matematiksel Hesaplama Motoru
+# ============================================================
 
-mc = st.columns(5)
-with mc[0]: st.metric("n  (Nokta sayısı)", n)
-with mc[1]: st.metric("d  (Derece)", degree)
-with mc[2]: st.metric("κ(AᵀA)", f"{kappa:.2e}")
-with mc[3]: st.metric("R²  EKK", f"{r2_score(y,yh_ekk):.5f}")
-with mc[4]: st.metric("R²  QR",  f"{r2_score(y,yh_qr):.5f}")
+A = design_matrix(x, degree)
+ATA = A.T @ A
 
-if kappa > KAPPA_T:
-    st.error(f"🚨 **ILL-CONDITIONED** — κ = {kappa:.2e} (eşik 10¹² aşıldı). EKK güvenilmez, QR zorunludur.")
-elif kappa > 1e6:
-    st.warning(f"⚡ Orta düzey ill-conditioning: κ = {kappa:.2e}. Kritik uygulamalarda QR tercih edin.")
-else:
-    st.success(f"✅ İyi koşullanmış sistem: κ = {kappa:.2e}")
+condition_number = np.linalg.cond(ATA)
 
+try:
+    beta_ekk = normal_equation_solution(A, y)
+except np.linalg.LinAlgError:
+    beta_ekk = np.full(degree + 1, np.nan)
 
-# ──────────────────────────────────────────────────────────────────
-# BÖLÜM 3 — MATEMATİKSEL YAPILAR
-# ──────────────────────────────────────────────────────────────────
-st.markdown('<div class="sec-header">③ Matematiksel Yapılar</div>', unsafe_allow_html=True)
+try:
+    beta_qr, Q, R = qr_solution(A, y)
+except np.linalg.LinAlgError:
+    beta_qr = np.full(degree + 1, np.nan)
+    Q = np.full_like(A, np.nan)
+    R = np.full((degree + 1, degree + 1), np.nan)
 
-tA, tAtA, tQ, tR, tBeta, tTh = st.tabs([
-    "📐 A  (Tasarım)",
-    "🔴 AᵀA  (Normal)",
-    "🟢 Q  (Ortogonal)",
-    "🔵 R  (Üst Üçgen)",
-    "📈 β  (Katsayılar)",
-    "📚 Teori",
-])
+y_hat_ekk = polynomial_values(beta_ekk, x) if np.all(np.isfinite(beta_ekk)) else np.full_like(y, np.nan)
+y_hat_qr = polynomial_values(beta_qr, x) if np.all(np.isfinite(beta_qr)) else np.full_like(y, np.nan)
 
-with tA:
-    left, right = st.columns([1,1], gap="medium")
-    with left:
-        st.latex(r"A_{ij} = x_i^{j-1}, \quad A \in \mathbb{R}^{n \times (d+1)}")
-        st.caption(f"Boyut: **{A.shape[0]} × {A.shape[1]}**")
-    with right:
-        st.markdown(render_matrix(A, f"A  [{A.shape[0]}×{A.shape[1]}]", mat_cap), unsafe_allow_html=True)
-
-with tAtA:
-    left, right = st.columns([1,1], gap="medium")
-    with left:
-        st.latex(r"\hat{\beta}_{\text{EKK}} = (A^T A)^{-1} A^T y")
-        st.latex(r"\kappa(A^T A) = [\kappa(A)]^2")
-        ks = "⚠️ Yüksek" if kappa > KAPPA_T else "✅ OK"
-        st.caption(f"κ(AᵀA) = **{kappa:.3e}**  |  {ks}")
-    with right:
-        st.markdown(render_matrix(AtA, f"AᵀA  [{AtA.shape[0]}×{AtA.shape[1]}]", mat_cap), unsafe_allow_html=True)
-
-with tQ:
-    left, right = st.columns([1,1], gap="medium")
-    with left:
-        st.latex(r"A = QR, \quad Q^T Q = I_{d+1}")
-        err = np.linalg.norm(Q.T @ Q - np.eye(Q.shape[1]), "fro")
-        st.caption(f"Ortonormallik hatası: **{err:.2e}**")
-        st.success("✅ Ortogonallik doğrulandı") if err < 1e-10 else st.warning(f"Hata: {err:.2e}")
-    with right:
-        st.markdown(render_matrix(Q, f"Q  [{Q.shape[0]}×{Q.shape[1]}]", mat_cap), unsafe_allow_html=True)
-
-with tR:
-    left, right = st.columns([1,1], gap="medium")
-    with left:
-        st.latex(r"R_{ij} = 0 \text{ for } i > j \quad \text{(üst üçgen)}")
-        st.latex(rf"\kappa(R) \approx {np.linalg.cond(R):.3e}")
-        st.caption("κ(R) = κ(A) — kare alma yok, daha kararlı.")
-    with right:
-        st.markdown(render_matrix(R, f"R  [{R.shape[0]}×{R.shape[1]}]", mat_cap), unsafe_allow_html=True)
-
-with tBeta:
-    st.latex(r"\hat{y}(x) = \beta_0 + \beta_1 x + \beta_2 x^2 + \cdots + \beta_d x^d")
-    bdf = pd.DataFrame({
-        "Katsayı":    [f"β_{k}" for k in range(degree+1)],
-        "EKK":        [f"{v:.10f}" for v in b_ekk],
-        "QR":         [f"{v:.10f}" for v in b_qr],
-        "|EKK − QR|": [f"{abs(a-b):.3e}" for a,b in zip(b_ekk, b_qr)],
-    })
-    st.dataframe(bdf, use_container_width=True, hide_index=True)
-    c1,c2,c3,c4 = st.columns(4)
-    with c1: st.metric("EKK  R²",  f"{r2_score(y,yh_ekk):.8f}")
-    with c2: st.metric("EKK  RSS", f"{float(e_ekk@e_ekk):.4e}")
-    with c3: st.metric("QR   R²",  f"{r2_score(y,yh_qr):.8f}")
-    with c4: st.metric("QR   RSS", f"{float(e_qr@e_qr):.4e}")
-
-with tTh:
-    st.markdown("#### EKK vs QR — Hata Büyüme Karşılaştırması")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("**Normal Denklemler (EKK)**")
-        st.latex(r"(A^T A)\,\hat{\beta} = A^T y")
-        st.latex(r"\Delta\beta \;\sim\; \kappa^2 \cdot \varepsilon_{\text{mach}}")
-        st.error(f"Bu projede: hata ≈ {kappa**2 * 1e-16:.2e}")
-    with c2:
-        st.markdown("**QR Ayrışımı**")
-        st.latex(r"A = QR \;\Rightarrow\; R\,\hat{\beta} = Q^T y")
-        st.latex(r"\Delta\beta \;\sim\; \kappa \cdot \varepsilon_{\text{mach}}")
-        st.success(f"Bu projede: hata ≈ {kappa * 1e-16:.2e}")
-    st.divider()
-    st.latex(r"\kappa(R) = \kappa(A), \quad \kappa(A^T A) = [\kappa(A)]^2 \implies \text{QR her zaman daha kararlıdır.}")
+rss_ekk = np.sum((y - y_hat_ekk) ** 2) if np.all(np.isfinite(y_hat_ekk)) else np.nan
+rss_qr = np.sum((y - y_hat_qr) ** 2) if np.all(np.isfinite(y_hat_qr)) else np.nan
 
 
-# ──────────────────────────────────────────────────────────────────
-# BÖLÜM 4 — GRAFİKLER
-# ──────────────────────────────────────────────────────────────────
-st.markdown('<div class="sec-header">④ Regresyon Grafiği</div>', unsafe_allow_html=True)
+# ============================================================
+#  Sayısal Kararlılık
+# ============================================================
 
-PBASE = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(10,14,48,.65)",
-    font=dict(color="#e2e8f0",family="Segoe UI",size=12),
-    legend=dict(bgcolor="rgba(6,8,24,.88)",bordercolor="rgba(99,102,241,.40)",
-                borderwidth=1,font=dict(size=11,color="#e2e8f0")),
-    margin=dict(l=50,r=20,t=45,b=35),
+st.subheader("2. Sayısal Kararlılık Göstergesi")
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric(
+    label=r"Condition Number: $A^T A$",
+    value=f"{condition_number:.3e}"
 )
-AX = dict(gridcolor="rgba(99,102,241,.13)",zerolinecolor="rgba(99,102,241,.35)",
-          color="#94a3b8",linecolor="rgba(99,102,241,.25)")
 
-fig = make_subplots(rows=2,cols=1,row_heights=[.68,.32],shared_xaxes=True,
-                    vertical_spacing=.06,
-                    subplot_titles=["Polinom Regresyonu","Kalıntı Analizi"])
+col2.metric(
+    label="EKK RSS",
+    value=f"{rss_ekk:.5g}"
+)
 
-# Veri
-fig.add_trace(go.Scatter(x=x,y=y,mode="markers",name="Gözlem",
-    marker=dict(size=9,color="#f8fafc",symbol="circle",line=dict(width=1.5,color="#6366f1"))), row=1,col=1)
+col3.metric(
+    label="QR RSS",
+    value=f"{rss_qr:.5g}"
+)
 
-# EKK
-if show_ekk:
-    fig.add_trace(go.Scatter(x=xf,y=yf_ekk,mode="lines",name=f"EKK (d={degree})",
-        line=dict(color="#f87171",width=2.2,dash="dash")), row=1,col=1)
-
-# QR
-if show_qr:
-    if show_band:
-        s = np.std(e_qr)
-        fig.add_trace(go.Scatter(
-            x=np.concatenate([xf,xf[::-1]]),
-            y=np.concatenate([yf_qr+s,(yf_qr-s)[::-1]]),
-            fill="toself",fillcolor="rgba(52,211,153,.09)",
-            line=dict(color="rgba(0,0,0,0)"),name="QR ±σ"), row=1,col=1)
-    fig.add_trace(go.Scatter(x=xf,y=yf_qr,mode="lines",name=f"QR (d={degree})",
-        line=dict(color="#34d399",width=2.2)), row=1,col=1)
-
-# Özel denklem
-if show_cust and yf_cust is not None:
-    fig.add_trace(go.Scatter(x=xf,y=yf_cust,mode="lines",name=f"f(x)={custom_expr}",
-        line=dict(color="#fbbf24",width=2,dash="dot")), row=1,col=1)
-
-# Kalıntı çizgileri
-if show_res:
-    for xi,yi,ei,qi in zip(x,y,yh_ekk,yh_qr):
-        if show_ekk:
-            fig.add_trace(go.Scatter(x=[xi,xi],y=[yi,ei],mode="lines",showlegend=False,
-                line=dict(color="rgba(248,113,113,.40)",width=1)), row=1,col=1)
-        if show_qr:
-            fig.add_trace(go.Scatter(x=[xi,xi],y=[yi,qi],mode="lines",showlegend=False,
-                line=dict(color="rgba(52,211,153,.40)",width=1)), row=1,col=1)
-
-# Kalıntı barları
-if show_ekk:
-    fig.add_trace(go.Bar(x=x,y=e_ekk,name="EKK Kalıntı",
-        marker_color="rgba(248,113,113,.70)"), row=2,col=1)
-if show_qr:
-    fig.add_trace(go.Bar(x=x,y=e_qr,name="QR Kalıntı",
-        marker_color="rgba(52,211,153,.70)"), row=2,col=1)
-
-fig.add_hline(y=0,line=dict(color="rgba(200,210,255,.30)",width=1,dash="dot"),row=2,col=1)
-fig.update_xaxes(**AX); fig.update_yaxes(**AX)
-fig.update_layout(height=640,**PBASE)
-st.plotly_chart(fig,use_container_width=True)
+if condition_number > 1e12:
+    st.error(
+        r"""
+        Kritik uyarı: $cond(A^T A) > 10^{12}$ olduğu için klasik EKK çözümü 
+        sayısal olarak güvenilmez hale gelmiştir. Bu durumda yuvarlama hataları 
+        büyüyebilir ve katsayılar kararsızlaşabilir.
+        """
+    )
+else:
+    st.success(
+        "Koşul sayısı kritik eşiğin altında. Ancak derece arttıkça sayısal kararsızlık izlenmelidir."
+    )
 
 
-# ── Kararlılık analizi (expander) ──
-with st.expander("🔬 Derece → Koşul Sayısı İlişkisi"):
-    dr = list(range(1, min(14, n-1)))
-    ks_list = []
-    for d in dr:
-        At = vandermonde(x, d)
-        ks_list.append(np.linalg.cond(At.T @ At))
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=dr,y=ks_list,mode="lines+markers",name="κ(AᵀA)",
-        line=dict(color="#a78bfa",width=2),marker=dict(size=7,color="#a78bfa")))
-    fig2.add_hline(y=KAPPA_T,line=dict(color="#f87171",width=1.5,dash="dash"),
-        annotation_text="Eşik 10¹²",annotation_font_color="#f87171")
-    fig2.add_vline(x=degree,line=dict(color="#fbbf24",width=1.5,dash="dot"),
-        annotation_text=f"d={degree}",annotation_font_color="#fbbf24")
-    fig2.update_xaxes(title_text="Polinom Derecesi",**AX)
-    fig2.update_yaxes(title_text="κ(AᵀA) — log",type="log",**AX)
-    fig2.update_layout(height=340,**PBASE)
-    st.plotly_chart(fig2,use_container_width=True)
+# ============================================================
+#  Grafik
+# ============================================================
+
+st.subheader("3. EKK ve QR Eğrilerinin Karşılaştırılması")
+
+x_grid = np.linspace(np.min(x), np.max(x), 500)
+
+fig = go.Figure()
+
+fig.add_trace(
+    go.Scatter(
+        x=x,
+        y=y,
+        mode="markers",
+        name="Veri Noktaları",
+        marker=dict(size=9)
+    )
+)
+
+if show_ekk and np.all(np.isfinite(beta_ekk)):
+    fig.add_trace(
+        go.Scatter(
+            x=x_grid,
+            y=polynomial_values(beta_ekk, x_grid),
+            mode="lines",
+            name="Klasik EKK"
+        )
+    )
+
+if show_qr and np.all(np.isfinite(beta_qr)):
+    fig.add_trace(
+        go.Scatter(
+            x=x_grid,
+            y=polynomial_values(beta_qr, x_grid),
+            mode="lines",
+            name="QR Ayrışımı"
+        )
+    )
+
+if show_residuals and np.all(np.isfinite(y_hat_qr)):
+    for xi, yi, yqi in zip(x, y, y_hat_qr):
+        fig.add_trace(
+            go.Scatter(
+                x=[xi, xi],
+                y=[yi, yqi],
+                mode="lines",
+                line=dict(dash="dot"),
+                showlegend=False,
+                hoverinfo="skip"
+            )
+        )
+
+fig.update_layout(
+    template="plotly_dark",
+    height=620,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(15,23,42,0.65)",
+    title="Polinom Yaklaşımı ve Kalıntılar",
+    xaxis_title="x",
+    yaxis_title="y",
+    legend_title="Yöntem"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 
-# ──────────────────────────────────────────────────────────────────
-# BÖLÜM 5 — ÖZET RAPOR
-# ──────────────────────────────────────────────────────────────────
-st.markdown('<div class="sec-header">⑤ Akademik Özet Rapor</div>', unsafe_allow_html=True)
+# ============================================================
+#  Matematiksel Mutfak
+# ============================================================
 
-with st.expander("Sonuçları Göster", expanded=True):
-    bd = np.linalg.norm(b_ekk - b_qr)
-    st.markdown(f"""
-| Metrik | EKK | QR |
-|:--|--:|--:|
-| R² | `{r2_score(y,yh_ekk):.10f}` | `{r2_score(y,yh_qr):.10f}` |
-| RSS | `{float(e_ekk@e_ekk):.6e}` | `{float(e_qr@e_qr):.6e}` |
-| Max \|kalıntı\| | `{np.max(np.abs(e_ekk)):.6e}` | `{np.max(np.abs(e_qr)):.6e}` |
-| ‖β_EKK − β_QR‖₂ | `{bd:.6e}` | — |
-| Koşul sayısı | `{kappa:.6e}` | `{np.linalg.cond(R):.6e}` (R) |
-| Kararlılık | {"❌ Güvenilmez" if kappa>KAPPA_T else "⚠️ Dikkat" if kappa>1e6 else "✅ İyi"} | ✅ Kararlı |
-""")
-    st.latex(r"\kappa(R)=\kappa(A),\quad\kappa(A^TA)=[\kappa(A)]^2 \implies \text{QR her zaman daha kararlıdır.}")
+st.subheader("4. Matematiksel Mutfak: Matrisler ve LaTeX Açıklamalar")
 
-st.divider()
-st.caption("🎓 Matematik Bitirme Projesi · EKK vs QR · Streamlit + NumPy + Plotly · ε_mach ≈ 2.22×10⁻¹⁶")
+tab_A, tab_ATA, tab_Q, tab_R, tab_coef = st.tabs(
+    ["Tasarım Matrisi A", "Normal Denklem AᵀA", "Ortogonal Q", "Üst Üçgen R", "Katsayılar"]
+)
+
+with tab_A:
+    st.latex(
+        r"""
+        A =
+        \begin{bmatrix}
+        1 & x_1 & x_1^2 & \cdots & x_1^n \\
+        1 & x_2 & x_2^2 & \cdots & x_2^n \\
+        \vdots & \vdots & \vdots & \ddots & \vdots \\
+        1 & x_m & x_m^2 & \cdots & x_m^n
+        \end{bmatrix}
+        """
+    )
+    st.latex("A = " + matrix_to_latex(A))
+
+with tab_ATA:
+    st.latex(
+        r"""
+        \hat{\beta}_{EKK}
+        =
+        (A^T A)^{-1} A^T y
+        """
+    )
+    st.latex(
+        r"""
+        A^T A
+        """
+    )
+    st.latex(matrix_to_latex(ATA))
+    st.markdown(
+        """
+Normal denklem yöntemi teorik olarak doğru olsa da, pratikte 
+$A^T A$ matrisi koşul sayısını yaklaşık olarak karesel biçimde büyütür. 
+Bu nedenle yüksek dereceli polinomlarda EKK çözümü sayısal olarak kırılganlaşır.
+"""
+    )
+
+with tab_Q:
+    st.latex(
+        r"""
+        A = QR, \qquad Q^TQ = I
+        """
+    )
+    st.latex("Q = " + matrix_to_latex(Q))
+    st.markdown(
+        """
+QR ayrışımı, normal denklemdeki $A^T A$ matrisini açıkça oluşturmadan çözüm üretir. 
+Bu nedenle yuvarlama hatalarına karşı daha kararlıdır.
+"""
+    )
+
+with tab_R:
+    st.latex(
+        r"""
+        R\hat{\beta}_{QR} = Q^T y
+        """
+    )
+    st.latex("R = " + matrix_to_latex(R))
+
+with tab_coef:
+    col_left, col_right = st.columns(2)
+
+    with col_left:
+        st.markdown("### Klasik EKK Polinomu")
+        if np.all(np.isfinite(beta_ekk)):
+            st.latex(r"p_{EKK}(x) = " + coefficients_to_latex(beta_ekk))
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Derece": np.arange(len(beta_ekk)),
+                        "Katsayı": beta_ekk
+                    }
+                ),
+                use_container_width=True
+            )
+        else:
+            st.error("EKK katsayıları hesaplanamadı.")
+
+    with col_right:
+        st.markdown("### QR Polinomu")
+        if np.all(np.isfinite(beta_qr)):
+            st.latex(r"p_{QR}(x) = " + coefficients_to_latex(beta_qr))
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Derece": np.arange(len(beta_qr)),
+                        "Katsayı": beta_qr
+                    }
+                ),
+                use_container_width=True
+            )
+        else:
+            st.error("QR katsayıları hesaplanamadı.")
+
+
+# ============================================================
+#  Akademik Sonuç
+# ============================================================
+
+st.subheader("5. Akademik Yorum")
+
+st.markdown(
+    f"""
+Seçilen polinom derecesi **{degree}** için hesaplanan koşul sayısı:
+
+$$
+cond(A^T A) = {condition_number:.3e}
+$$
+
+Bu değer büyüdükçe klasik EKK yönteminde kullanılan normal denklem yaklaşımı 
+sayısal olarak hassaslaşır. QR ayrışımı ise problemi ortogonal dönüşümler üzerinden 
+çözdüğü için özellikle yüksek dereceli polinom regresyonlarında daha kararlı sonuçlar üretir.
+"""
+)
