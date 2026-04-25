@@ -8,26 +8,27 @@ import streamlit as st
 
 
 # ============================================================
-#  Sayfa Ayarları
+# PAGE CONFIG
 # ============================================================
 
 st.set_page_config(
-    page_title="EKK vs QR Ayrışımı",
+    page_title="EKK vs QR Ayrışımı | Sayısal Kararlılık Motoru",
     page_icon="📐",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 
 # ============================================================
-#  CSS ve Arka Plan
+# BACKGROUND & THEME
 # ============================================================
 
-def set_background(image_path: str = "image_13.PNG") -> None:
+def load_background(image_path: str = "image_13.PNG") -> str:
     path = Path(image_path)
 
     if path.exists():
         encoded = base64.b64encode(path.read_bytes()).decode()
-        background_css = f"""
+        return f"""
         .stApp {{
             background:
                 linear-gradient(rgba(0,0,0,0.80), rgba(0,0,0,0.80)),
@@ -37,61 +38,80 @@ def set_background(image_path: str = "image_13.PNG") -> None:
             background-attachment: fixed;
         }}
         """
-    else:
-        background_css = """
-        .stApp {
-            background: linear-gradient(135deg, #0f172a, #020617);
-        }
-        """
 
+    return """
+    .stApp {
+        background: radial-gradient(circle at top, #1e293b 0%, #020617 60%);
+    }
+    """
+
+
+def apply_custom_css() -> None:
     st.markdown(
         f"""
         <style>
-        {background_css}
+        {load_background()}
 
         html, body, [class*="css"] {{
-            color: #f1f5f9;
+            color: #f8fafc;
         }}
 
         h1, h2, h3, h4 {{
             color: #ffffff;
+            font-weight: 800;
+        }}
+
+        .block-container {{
+            padding-top: 2rem;
+            padding-bottom: 3rem;
+        }}
+
+        .glass-card {{
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 20px;
+            padding: 1.2rem 1.4rem;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.35);
+        }}
+
+        div[data-testid="stMetric"] {{
+            background: rgba(15, 23, 42, 0.78);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 18px;
+            padding: 1rem;
         }}
 
         .stButton > button {{
             background: rgba(255, 255, 255, 0.12);
             color: white;
             border: 1px solid rgba(255,255,255,0.25);
-            border-radius: 12px;
-            padding: 0.6rem 1.2rem;
-            transition: 0.3s;
+            border-radius: 14px;
+            padding: 0.65rem 1.1rem;
+            transition: 0.25s ease-in-out;
         }}
 
         .stButton > button:hover {{
             background: rgba(255, 255, 255, 0.25);
             border-color: white;
+            transform: translateY(-1px);
         }}
 
-        .stSelectbox, .stSlider, .stNumberInput, .stDataFrame {{
-            background: rgba(15, 23, 42, 0.55);
-            border-radius: 14px;
-            padding: 0.5rem;
-        }}
-
-        div[data-testid="stMetric"] {{
-            background: rgba(15, 23, 42, 0.70);
-            border: 1px solid rgba(255,255,255,0.18);
+        .stSelectbox, .stSlider, .stNumberInput, .stCheckbox, .stDataFrame {{
+            background: rgba(15, 23, 42, 0.48);
             border-radius: 16px;
-            padding: 1rem;
+            padding: 0.45rem;
         }}
 
         div[data-testid="stTabs"] {{
-            background: rgba(15, 23, 42, 0.55);
-            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.58);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 18px;
             padding: 1rem;
         }}
 
-        .block-container {{
-            padding-top: 2rem;
+        .small-text {{
+            color: #cbd5e1;
+            font-size: 0.95rem;
         }}
         </style>
         """,
@@ -99,147 +119,254 @@ def set_background(image_path: str = "image_13.PNG") -> None:
     )
 
 
-set_background()
+apply_custom_css()
 
 
 # ============================================================
-#  Yardımcı Fonksiyonlar
+# DATASETS
 # ============================================================
 
-def create_dataset(name: str) -> pd.DataFrame:
-    np.random.seed(42)
+def make_dataset(dataset_name: str, noise_scale: float, seed: int) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
 
-    if name == "Ev Fiyatları (Lineer)":
-        x = np.linspace(50, 250, 12)
-        y = 1200 * x + 50_000 + np.random.normal(0, 18_000, len(x))
+    if dataset_name == "Ev Fiyatları (Lineer)":
+        x = np.linspace(50, 250, 18)
+        y = 1250 * x + 55_000 + rng.normal(0, noise_scale * 20_000, size=len(x))
 
-    elif name == "Radar Sinyalleri (Dalgalı)":
-        x = np.linspace(0, 10, 18)
-        y = 3 * np.sin(1.7 * x) + 0.45 * x + np.random.normal(0, 0.35, len(x))
+    elif dataset_name == "Radar Sinyalleri (Dalgalı)":
+        x = np.linspace(0, 10, 24)
+        y = (
+            3.2 * np.sin(1.65 * x)
+            + 1.1 * np.cos(0.7 * x)
+            + 0.38 * x
+            + rng.normal(0, noise_scale * 0.45, size=len(x))
+        )
 
-    elif name == "Sıcaklık Değişimi":
-        x = np.linspace(1, 24, 16)
-        y = 18 + 7 * np.sin((np.pi / 12) * (x - 6)) + np.random.normal(0, 0.8, len(x))
+    elif dataset_name == "Sıcaklık Değişimi":
+        x = np.linspace(1, 24, 24)
+        y = (
+            19
+            + 7.5 * np.sin((np.pi / 12) * (x - 6))
+            + 1.2 * np.cos((np.pi / 6) * x)
+            + rng.normal(0, noise_scale * 0.85, size=len(x))
+        )
+
+    elif dataset_name == "Finansal Trend (Üstelimsi)":
+        x = np.linspace(0, 12, 22)
+        y = 20 + 4.2 * x + 0.55 * x**2 + rng.normal(0, noise_scale * 5.0, size=len(x))
+
+    elif dataset_name == "Deneysel Ölçüm (Kübik)":
+        x = np.linspace(-4, 4, 21)
+        y = 2.5 - 1.2 * x + 0.8 * x**2 - 0.25 * x**3 + rng.normal(
+            0, noise_scale * 2.0, size=len(x)
+        )
+
+    elif dataset_name == "Yüksek Derece Testi":
+        x = np.linspace(-1, 1, 28)
+        y = 1 / (1 + 25 * x**2) + rng.normal(0, noise_scale * 0.015, size=len(x))
 
     else:
-        x = np.arange(1, 8)
-        y = np.array([2.1, 2.9, 4.8, 7.2, 11.1, 15.3, 20.2])
+        x = np.arange(1, 9)
+        y = np.array([2.1, 3.2, 4.7, 7.9, 11.4, 15.6, 20.5, 27.1])
 
     return pd.DataFrame({"x": x, "y": y})
 
 
-def design_matrix(x: np.ndarray, degree: int) -> np.ndarray:
-    return np.vander(x, N=degree + 1, increasing=True)
+# ============================================================
+# LINEAR ALGEBRA ENGINE
+# ============================================================
+
+def design_matrix(x_values: np.ndarray, polynomial_degree: int) -> np.ndarray:
+    return np.vander(x_values, N=polynomial_degree + 1, increasing=True)
 
 
-def normal_equation_solution(A: np.ndarray, y: np.ndarray) -> np.ndarray:
-    ATA = A.T @ A
-    ATy = A.T @ y
-    return np.linalg.solve(ATA, ATy)
+def solve_by_normal_equations(A: np.ndarray, y: np.ndarray) -> np.ndarray:
+    return np.linalg.solve(A.T @ A, A.T @ y)
 
 
-def qr_solution(A: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def solve_by_qr(A: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     Q, R = np.linalg.qr(A, mode="reduced")
     beta = np.linalg.solve(R, Q.T @ y)
     return beta, Q, R
 
 
-def polynomial_values(beta: np.ndarray, x: np.ndarray) -> np.ndarray:
-    A_eval = design_matrix(x, len(beta) - 1)
+def evaluate_polynomial(beta: np.ndarray, x_values: np.ndarray) -> np.ndarray:
+    A_eval = design_matrix(x_values, len(beta) - 1)
     return A_eval @ beta
 
 
-def matrix_to_latex(M: np.ndarray, decimals: int = 4, max_rows: int = 10, max_cols: int = 8) -> str:
-    M = np.asarray(M)
-    rows, cols = M.shape
+def safe_relative_difference(a: np.ndarray, b: np.ndarray) -> float:
+    denominator = np.linalg.norm(b)
+    if denominator == 0:
+        return np.nan
+    return np.linalg.norm(a - b) / denominator
 
-    shown = M[:max_rows, :max_cols]
-    body = []
 
+def compute_statistics(y: np.ndarray, y_hat: np.ndarray, number_of_parameters: int) -> dict:
+    residuals = y - y_hat
+    rss = float(np.sum(residuals**2))
+    rmse = float(np.sqrt(np.mean(residuals**2)))
+    mae = float(np.mean(np.abs(residuals)))
+
+    tss = float(np.sum((y - np.mean(y)) ** 2))
+    r2 = 1 - rss / tss if tss != 0 else np.nan
+
+    n = len(y)
+    adjusted_r2 = (
+        1 - (1 - r2) * (n - 1) / (n - number_of_parameters)
+        if n > number_of_parameters and np.isfinite(r2)
+        else np.nan
+    )
+
+    return {
+        "RSS": rss,
+        "RMSE": rmse,
+        "MAE": mae,
+        "R2": r2,
+        "Adjusted R2": adjusted_r2,
+    }
+
+
+def matrix_to_latex(
+    matrix: np.ndarray,
+    decimals: int = 4,
+    max_rows: int = 10,
+    max_cols: int = 8
+) -> str:
+    matrix = np.asarray(matrix)
+    rows, cols = matrix.shape
+    shown = matrix[:max_rows, :max_cols]
+
+    latex_rows = []
     for row in shown:
-        body.append(" & ".join([f"{value:.{decimals}g}" for value in row]))
+        latex_rows.append(" & ".join(f"{value:.{decimals}g}" for value in row))
 
     if rows > max_rows:
-        body.append(r"\vdots" + " & " * (shown.shape[1] - 1))
+        latex_rows.append(r"\vdots" + (" & " * (shown.shape[1] - 1)))
 
-    latex = r"\begin{bmatrix}" + r"\\".join(body) + r"\end{bmatrix}"
+    latex = r"\begin{bmatrix}" + r"\\".join(latex_rows) + r"\end{bmatrix}"
 
     if rows > max_rows or cols > max_cols:
-        latex += r"\quad \text{(kısaltılmış gösterim)}"
+        latex += r"\quad \text{(kısaltılmış)}"
 
     return latex
 
 
-def coefficients_to_latex(beta: np.ndarray) -> str:
+def polynomial_to_latex(beta: np.ndarray) -> str:
     terms = []
-    for i, b in enumerate(beta):
-        if i == 0:
-            terms.append(f"{b:.5g}")
-        elif i == 1:
-            terms.append(f"{b:.5g}x")
+
+    for degree, coefficient in enumerate(beta):
+        sign = "+" if coefficient >= 0 else "-"
+        absolute = abs(coefficient)
+
+        if degree == 0:
+            term = f"{absolute:.5g}"
+        elif degree == 1:
+            term = f"{absolute:.5g}x"
         else:
-            terms.append(f"{b:.5g}x^{i}")
-    return " + ".join(terms)
+            term = f"{absolute:.5g}x^{degree}"
+
+        if degree == 0:
+            terms.append(term if coefficient >= 0 else f"-{term}")
+        else:
+            terms.append(f" {sign} {term}")
+
+    return "".join(terms)
 
 
 # ============================================================
-#  Başlık
-# ============================================================
-
-st.title("📐 Klasik EKK ve QR Ayrışımı Karşılaştırmalı Hesaplama Motoru")
-
-st.markdown(
-    """
-Bu uygulama, yüksek dereceli polinom yaklaşımlarında klasik normal denklem tabanlı 
-**En Küçük Kareler (EKK)** yönteminin sayısal kararsızlığını ve **QR Ayrışımı** yönteminin 
-neden daha güvenilir olduğunu deneysel olarak gösterir.
-"""
-)
-
-
-# ============================================================
-#  Yan Panel
+# SIDEBAR
 # ============================================================
 
 with st.sidebar:
-    st.header("⚙️ Parametreler")
+    st.header("⚙️ Kontrol Paneli")
 
-    selected_dataset = st.selectbox(
-        "Hazır veri seti seç",
+    dataset_name = st.selectbox(
+        "Hazır veri seti",
         [
             "Ev Fiyatları (Lineer)",
             "Radar Sinyalleri (Dalgalı)",
             "Sıcaklık Değişimi",
-            "Özel Başlangıç Verisi"
+            "Finansal Trend (Üstelimsi)",
+            "Deneysel Ölçüm (Kübik)",
+            "Yüksek Derece Testi",
+            "Özel Başlangıç Verisi",
         ]
     )
 
-    if "active_dataset" not in st.session_state:
-        st.session_state.active_dataset = selected_dataset
-        st.session_state.data = create_dataset(selected_dataset)
-
-    if selected_dataset != st.session_state.active_dataset:
-        st.session_state.active_dataset = selected_dataset
-        st.session_state.data = create_dataset(selected_dataset)
-
-    degree = st.slider(
+    polynomial_degree = st.slider(
         "Polinom derecesi",
         min_value=1,
-        max_value=12,
-        value=3
+        max_value=15,
+        value=5
     )
 
-    show_ekk = st.checkbox("EKK eğrisini göster", value=True)
-    show_qr = st.checkbox("QR eğrisini göster", value=True)
-    show_residuals = st.checkbox("Kalıntı çizgilerini göster", value=False)
-
-    st.warning(
-        "Yüksek derece seçildiğinde Vandermonde matrisi kötü koşullu hale gelebilir."
+    noise_scale = st.slider(
+        "Veri gürültüsü",
+        min_value=0.0,
+        max_value=3.0,
+        value=1.0,
+        step=0.1
     )
+
+    random_seed = st.number_input(
+        "Rastgelelik tohumu",
+        min_value=1,
+        max_value=9999,
+        value=42,
+        step=1
+    )
+
+    st.divider()
+
+    show_ekk_curve = st.checkbox("EKK eğrisini göster", value=True)
+    show_qr_curve = st.checkbox("QR eğrisini göster", value=True)
+    show_residual_lines = st.checkbox("Kalıntı çizgilerini göster", value=True)
+    show_residual_bar = st.checkbox("Kalıntı bar grafiğini göster", value=True)
+    show_condition_comparison = st.checkbox("Koşul sayısı karşılaştırmasını göster", value=True)
+
+    st.divider()
+
+    scale_x = st.checkbox(
+        "x değerlerini standartlaştır",
+        value=False,
+        help="Yüksek dereceli polinomlarda sayısal kararlılığı iyileştirebilir."
+    )
+
+
+if (
+    "dataset_name" not in st.session_state
+    or st.session_state.dataset_name != dataset_name
+    or st.session_state.noise_scale != noise_scale
+    or st.session_state.random_seed != random_seed
+):
+    st.session_state.dataset_name = dataset_name
+    st.session_state.noise_scale = noise_scale
+    st.session_state.random_seed = random_seed
+    st.session_state.data = make_dataset(dataset_name, noise_scale, random_seed)
 
 
 # ============================================================
-#  Veri Girişi
+# HEADER
+# ============================================================
+
+st.title("📐 EKK ve QR Ayrışımı Karşılaştırmalı Hesaplama Motoru")
+
+st.markdown(
+    """
+<div class="glass-card">
+Bu uygulama, klasik normal denklem tabanlı <b>En Küçük Kareler</b> yöntemi ile 
+<b>QR Ayrışımı</b> yöntemini karşılaştırır. Amaç, özellikle yüksek dereceli polinom 
+regresyonunda <b>ill-conditioned</b> yapıların EKK çözümünü nasıl bozduğunu ve QR yönteminin 
+neden daha kararlı olduğunu deneysel ve akademik biçimde göstermektir.
+</div>
+""",
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# DATA EDITOR
 # ============================================================
 
 st.subheader("1. Veri Giriş Katmanı")
@@ -251,133 +378,183 @@ edited_data = st.data_editor(
     key="data_editor"
 )
 
-data = edited_data.dropna()
+data = edited_data.dropna().copy()
 
-if len(data) < degree + 1:
+if "x" not in data.columns or "y" not in data.columns:
+    st.error("Tabloda mutlaka `x` ve `y` sütunları bulunmalıdır.")
+    st.stop()
+
+data["x"] = pd.to_numeric(data["x"], errors="coerce")
+data["y"] = pd.to_numeric(data["y"], errors="coerce")
+data = data.dropna()
+
+if len(data) < polynomial_degree + 1:
     st.error("Seçilen polinom derecesi için yeterli veri noktası yok.")
     st.stop()
 
-x = data["x"].to_numpy(dtype=float)
+data = data.sort_values("x")
+x_original = data["x"].to_numpy(dtype=float)
 y = data["y"].to_numpy(dtype=float)
 
-sort_idx = np.argsort(x)
-x = x[sort_idx]
-y = y[sort_idx]
+if scale_x:
+    x_mean = np.mean(x_original)
+    x_std = np.std(x_original)
+
+    if x_std == 0:
+        st.error("x değerlerinin standart sapması sıfır olduğu için standartlaştırma yapılamaz.")
+        st.stop()
+
+    x = (x_original - x_mean) / x_std
+else:
+    x = x_original.copy()
 
 
 # ============================================================
-#  Matematiksel Hesaplama Motoru
+# COMPUTATION
 # ============================================================
 
-A = design_matrix(x, degree)
+A = design_matrix(x, polynomial_degree)
 ATA = A.T @ A
 
-condition_number = np.linalg.cond(ATA)
+condition_A = np.linalg.cond(A)
+condition_ATA = np.linalg.cond(ATA)
+
+ekk_failed = False
+qr_failed = False
 
 try:
-    beta_ekk = normal_equation_solution(A, y)
+    beta_ekk = solve_by_normal_equations(A, y)
 except np.linalg.LinAlgError:
-    beta_ekk = np.full(degree + 1, np.nan)
+    beta_ekk = np.full(polynomial_degree + 1, np.nan)
+    ekk_failed = True
 
 try:
-    beta_qr, Q, R = qr_solution(A, y)
+    beta_qr, Q, R = solve_by_qr(A, y)
 except np.linalg.LinAlgError:
-    beta_qr = np.full(degree + 1, np.nan)
+    beta_qr = np.full(polynomial_degree + 1, np.nan)
     Q = np.full_like(A, np.nan)
-    R = np.full((degree + 1, degree + 1), np.nan)
+    R = np.full((polynomial_degree + 1, polynomial_degree + 1), np.nan)
+    qr_failed = True
 
-y_hat_ekk = polynomial_values(beta_ekk, x) if np.all(np.isfinite(beta_ekk)) else np.full_like(y, np.nan)
-y_hat_qr = polynomial_values(beta_qr, x) if np.all(np.isfinite(beta_qr)) else np.full_like(y, np.nan)
+y_hat_ekk = (
+    evaluate_polynomial(beta_ekk, x)
+    if np.all(np.isfinite(beta_ekk))
+    else np.full_like(y, np.nan)
+)
 
-rss_ekk = np.sum((y - y_hat_ekk) ** 2) if np.all(np.isfinite(y_hat_ekk)) else np.nan
-rss_qr = np.sum((y - y_hat_qr) ** 2) if np.all(np.isfinite(y_hat_qr)) else np.nan
+y_hat_qr = (
+    evaluate_polynomial(beta_qr, x)
+    if np.all(np.isfinite(beta_qr))
+    else np.full_like(y, np.nan)
+)
+
+stats_ekk = (
+    compute_statistics(y, y_hat_ekk, polynomial_degree + 1)
+    if np.all(np.isfinite(y_hat_ekk))
+    else None
+)
+
+stats_qr = (
+    compute_statistics(y, y_hat_qr, polynomial_degree + 1)
+    if np.all(np.isfinite(y_hat_qr))
+    else None
+)
+
+coefficient_difference = (
+    safe_relative_difference(beta_ekk, beta_qr)
+    if np.all(np.isfinite(beta_ekk)) and np.all(np.isfinite(beta_qr))
+    else np.nan
+)
 
 
 # ============================================================
-#  Sayısal Kararlılık
+# NUMERICAL STABILITY DASHBOARD
 # ============================================================
 
-st.subheader("2. Sayısal Kararlılık Göstergesi")
+st.subheader("2. Sayısal Kararlılık Paneli")
 
-col1, col2, col3 = st.columns(3)
+m1, m2, m3, m4 = st.columns(4)
 
-col1.metric(
-    label=r"Condition Number: $A^T A$",
-    value=f"{condition_number:.3e}"
-)
+m1.metric("cond(A)", f"{condition_A:.3e}")
+m2.metric("cond(AᵀA)", f"{condition_ATA:.3e}")
+m3.metric("Katsayı Farkı", f"{coefficient_difference:.3e}")
+m4.metric("Polinom Derecesi", polynomial_degree)
 
-col2.metric(
-    label="EKK RSS",
-    value=f"{rss_ekk:.5g}"
-)
-
-col3.metric(
-    label="QR RSS",
-    value=f"{rss_qr:.5g}"
-)
-
-if condition_number > 1e12:
+if condition_ATA > 1e12:
     st.error(
         r"""
-        Kritik uyarı: $cond(A^T A) > 10^{12}$ olduğu için klasik EKK çözümü 
-        sayısal olarak güvenilmez hale gelmiştir. Bu durumda yuvarlama hataları 
-        büyüyebilir ve katsayılar kararsızlaşabilir.
-        """
+Kritik uyarı: $cond(A^T A) > 10^{12}$ olduğu için normal denklem tabanlı EKK çözümü 
+sayısal olarak güvenilmez hale gelmiştir. Bu durumda küçük yuvarlama hataları katsayılarda 
+büyük sapmalara neden olabilir.
+"""
+    )
+elif condition_ATA > 1e8:
+    st.warning(
+        r"""
+Dikkat: $cond(A^T A)$ oldukça yüksek. EKK çözümü henüz tamamen çökmediği halde 
+katsayılar sayısal hatalara karşı hassas olabilir.
+"""
     )
 else:
-    st.success(
-        "Koşul sayısı kritik eşiğin altında. Ancak derece arttıkça sayısal kararsızlık izlenmelidir."
-    )
+    st.success("Koşul sayısı kritik seviyenin altında görünüyor.")
 
 
 # ============================================================
-#  Grafik
+# MAIN PLOT
 # ============================================================
 
-st.subheader("3. EKK ve QR Eğrilerinin Karşılaştırılması")
+st.subheader("3. EKK ve QR Eğrilerinin Görsel Karşılaştırması")
 
-x_grid = np.linspace(np.min(x), np.max(x), 500)
+x_grid_original = np.linspace(np.min(x_original), np.max(x_original), 600)
+
+if scale_x:
+    x_grid = (x_grid_original - np.mean(x_original)) / np.std(x_original)
+else:
+    x_grid = x_grid_original.copy()
 
 fig = go.Figure()
 
 fig.add_trace(
     go.Scatter(
-        x=x,
+        x=x_original,
         y=y,
         mode="markers",
-        name="Veri Noktaları",
+        name="Gözlem Noktaları",
         marker=dict(size=9)
     )
 )
 
-if show_ekk and np.all(np.isfinite(beta_ekk)):
+if show_ekk_curve and np.all(np.isfinite(beta_ekk)):
     fig.add_trace(
         go.Scatter(
-            x=x_grid,
-            y=polynomial_values(beta_ekk, x_grid),
+            x=x_grid_original,
+            y=evaluate_polynomial(beta_ekk, x_grid),
             mode="lines",
-            name="Klasik EKK"
+            name="Klasik EKK",
+            line=dict(width=3)
         )
     )
 
-if show_qr and np.all(np.isfinite(beta_qr)):
+if show_qr_curve and np.all(np.isfinite(beta_qr)):
     fig.add_trace(
         go.Scatter(
-            x=x_grid,
-            y=polynomial_values(beta_qr, x_grid),
+            x=x_grid_original,
+            y=evaluate_polynomial(beta_qr, x_grid),
             mode="lines",
-            name="QR Ayrışımı"
+            name="QR Ayrışımı",
+            line=dict(width=3, dash="dash")
         )
     )
 
-if show_residuals and np.all(np.isfinite(y_hat_qr)):
-    for xi, yi, yqi in zip(x, y, y_hat_qr):
+if show_residual_lines and np.all(np.isfinite(y_hat_qr)):
+    for xi, yi, yqi in zip(x_original, y, y_hat_qr):
         fig.add_trace(
             go.Scatter(
                 x=[xi, xi],
                 y=[yi, yqi],
                 mode="lines",
-                line=dict(dash="dot"),
+                name="QR Kalıntısı",
+                line=dict(width=1, dash="dot"),
                 showlegend=False,
                 hoverinfo="skip"
             )
@@ -387,27 +564,161 @@ fig.update_layout(
     template="plotly_dark",
     height=620,
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(15,23,42,0.65)",
-    title="Polinom Yaklaşımı ve Kalıntılar",
+    plot_bgcolor="rgba(15,23,42,0.72)",
+    title="Polinom Regresyonu: Normal Denklem EKK vs QR Ayrışımı",
     xaxis_title="x",
     yaxis_title="y",
-    legend_title="Yöntem"
+    legend_title="Gösterimler"
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
 
 # ============================================================
-#  Matematiksel Mutfak
+# RESIDUAL ANALYSIS
 # ============================================================
 
-st.subheader("4. Matematiksel Mutfak: Matrisler ve LaTeX Açıklamalar")
+if show_residual_bar:
+    st.subheader("4. Kalıntı Analizi")
 
-tab_A, tab_ATA, tab_Q, tab_R, tab_coef = st.tabs(
-    ["Tasarım Matrisi A", "Normal Denklem AᵀA", "Ortogonal Q", "Üst Üçgen R", "Katsayılar"]
+    residual_ekk = y - y_hat_ekk
+    residual_qr = y - y_hat_qr
+
+    residual_fig = go.Figure()
+
+    residual_fig.add_trace(
+        go.Bar(
+            x=x_original,
+            y=residual_ekk,
+            name="EKK Kalıntıları"
+        )
+    )
+
+    residual_fig.add_trace(
+        go.Bar(
+            x=x_original,
+            y=residual_qr,
+            name="QR Kalıntıları"
+        )
+    )
+
+    residual_fig.update_layout(
+        template="plotly_dark",
+        barmode="group",
+        height=430,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(15,23,42,0.72)",
+        title="Kalıntıların Karşılaştırılması",
+        xaxis_title="x",
+        yaxis_title="Kalıntı"
+    )
+
+    st.plotly_chart(residual_fig, use_container_width=True)
+
+
+# ============================================================
+# CONDITION COMPARISON BY DEGREE
+# ============================================================
+
+if show_condition_comparison:
+    st.subheader("5. Dereceye Göre Koşul Sayısı Analizi")
+
+    degrees = np.arange(1, min(16, len(x)) + 1)
+    cond_A_values = []
+    cond_ATA_values = []
+
+    for d in degrees:
+        A_d = design_matrix(x, d)
+        cond_A_values.append(np.linalg.cond(A_d))
+        cond_ATA_values.append(np.linalg.cond(A_d.T @ A_d))
+
+    cond_fig = go.Figure()
+
+    cond_fig.add_trace(
+        go.Scatter(
+            x=degrees,
+            y=cond_A_values,
+            mode="lines+markers",
+            name="cond(A)"
+        )
+    )
+
+    cond_fig.add_trace(
+        go.Scatter(
+            x=degrees,
+            y=cond_ATA_values,
+            mode="lines+markers",
+            name="cond(AᵀA)"
+        )
+    )
+
+    cond_fig.add_hline(
+        y=1e12,
+        line_dash="dash",
+        annotation_text="Kritik eşik: 10¹²"
+    )
+
+    cond_fig.update_layout(
+        template="plotly_dark",
+        height=460,
+        yaxis_type="log",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(15,23,42,0.72)",
+        title="Polinom Derecesi Arttıkça Koşul Sayısının Büyümesi",
+        xaxis_title="Polinom Derecesi",
+        yaxis_title="Koşul Sayısı - Log Ölçek"
+    )
+
+    st.plotly_chart(cond_fig, use_container_width=True)
+
+
+# ============================================================
+# STATISTICS TABLE
+# ============================================================
+
+st.subheader("6. Hata Metrikleri")
+
+metrics_table = pd.DataFrame(
+    {
+        "Metrik": ["RSS", "RMSE", "MAE", "R²", "Düzeltilmiş R²"],
+        "Klasik EKK": [
+            stats_ekk["RSS"] if stats_ekk else np.nan,
+            stats_ekk["RMSE"] if stats_ekk else np.nan,
+            stats_ekk["MAE"] if stats_ekk else np.nan,
+            stats_ekk["R2"] if stats_ekk else np.nan,
+            stats_ekk["Adjusted R2"] if stats_ekk else np.nan,
+        ],
+        "QR Ayrışımı": [
+            stats_qr["RSS"] if stats_qr else np.nan,
+            stats_qr["RMSE"] if stats_qr else np.nan,
+            stats_qr["MAE"] if stats_qr else np.nan,
+            stats_qr["R2"] if stats_qr else np.nan,
+            stats_qr["Adjusted R2"] if stats_qr else np.nan,
+        ],
+    }
 )
 
-with tab_A:
+st.dataframe(metrics_table, use_container_width=True)
+
+
+# ============================================================
+# MATHEMATICAL KITCHEN
+# ============================================================
+
+st.subheader("7. Matematiksel Mutfak: LaTeX ve Matrisler")
+
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    [
+        "Tasarım Matrisi A",
+        "Normal Denklem",
+        "QR Ayrışımı",
+        "Q Matrisi",
+        "R Matrisi",
+        "Polinomlar",
+    ]
+)
+
+with tab1:
     st.latex(
         r"""
         A =
@@ -421,7 +732,7 @@ with tab_A:
     )
     st.latex("A = " + matrix_to_latex(A))
 
-with tab_ATA:
+with tab2:
     st.latex(
         r"""
         \hat{\beta}_{EKK}
@@ -429,54 +740,59 @@ with tab_ATA:
         (A^T A)^{-1} A^T y
         """
     )
-    st.latex(
-        r"""
-        A^T A
-        """
-    )
-    st.latex(matrix_to_latex(ATA))
+    st.latex(r"A^T A = " + matrix_to_latex(ATA))
     st.markdown(
         """
-Normal denklem yöntemi teorik olarak doğru olsa da, pratikte 
-$A^T A$ matrisi koşul sayısını yaklaşık olarak karesel biçimde büyütür. 
-Bu nedenle yüksek dereceli polinomlarda EKK çözümü sayısal olarak kırılganlaşır.
+Normal denklem yaklaşımı teorik olarak geçerlidir; fakat pratikte 
+$A^TA$ matrisinin kurulması, koşul sayısını büyüterek problemi sayısal olarak hassaslaştırır.
 """
     )
 
-with tab_Q:
+with tab3:
     st.latex(
         r"""
         A = QR, \qquad Q^TQ = I
         """
     )
-    st.latex("Q = " + matrix_to_latex(Q))
+    st.latex(
+        r"""
+        A\beta \approx y
+        \quad \Longrightarrow \quad
+        QR\beta \approx y
+        """
+    )
+    st.latex(
+        r"""
+        R\hat{\beta}_{QR} = Q^Ty
+        """
+    )
     st.markdown(
         """
-QR ayrışımı, normal denklemdeki $A^T A$ matrisini açıkça oluşturmadan çözüm üretir. 
-Bu nedenle yuvarlama hatalarına karşı daha kararlıdır.
+QR yöntemi $A^TA$ matrisini doğrudan oluşturmaz. Bu nedenle özellikle Vandermonde tipi 
+tasarım matrislerinde normal denkleme göre daha kararlı bir çözüm üretir.
 """
     )
 
-with tab_R:
-    st.latex(
-        r"""
-        R\hat{\beta}_{QR} = Q^T y
-        """
-    )
-    st.latex("R = " + matrix_to_latex(R))
+with tab4:
+    st.latex(r"Q = " + matrix_to_latex(Q))
+    st.latex(r"Q^TQ \approx I")
 
-with tab_coef:
-    col_left, col_right = st.columns(2)
+with tab5:
+    st.latex(r"R = " + matrix_to_latex(R))
+    st.markdown("R matrisi üst üçgen yapıdadır ve çözüm geri yerine koyma mantığıyla elde edilir.")
 
-    with col_left:
-        st.markdown("### Klasik EKK Polinomu")
-        if np.all(np.isfinite(beta_ekk)):
-            st.latex(r"p_{EKK}(x) = " + coefficients_to_latex(beta_ekk))
+with tab6:
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.markdown("### Klasik EKK")
+        if not ekk_failed:
+            st.latex(r"p_{EKK}(x) = " + polynomial_to_latex(beta_ekk))
             st.dataframe(
                 pd.DataFrame(
                     {
                         "Derece": np.arange(len(beta_ekk)),
-                        "Katsayı": beta_ekk
+                        "Katsayı": beta_ekk,
                     }
                 ),
                 use_container_width=True
@@ -484,15 +800,15 @@ with tab_coef:
         else:
             st.error("EKK katsayıları hesaplanamadı.")
 
-    with col_right:
-        st.markdown("### QR Polinomu")
-        if np.all(np.isfinite(beta_qr)):
-            st.latex(r"p_{QR}(x) = " + coefficients_to_latex(beta_qr))
+    with c2:
+        st.markdown("### QR Ayrışımı")
+        if not qr_failed:
+            st.latex(r"p_{QR}(x) = " + polynomial_to_latex(beta_qr))
             st.dataframe(
                 pd.DataFrame(
                     {
                         "Derece": np.arange(len(beta_qr)),
-                        "Katsayı": beta_qr
+                        "Katsayı": beta_qr,
                     }
                 ),
                 use_container_width=True
@@ -502,21 +818,83 @@ with tab_coef:
 
 
 # ============================================================
-#  Akademik Sonuç
+# ACADEMIC INTERPRETATION
 # ============================================================
 
-st.subheader("5. Akademik Yorum")
+st.subheader("8. Akademik Sonuç Yorumu")
 
 st.markdown(
     f"""
-Seçilen polinom derecesi **{degree}** için hesaplanan koşul sayısı:
+<div class="glass-card">
+
+Seçilen polinom derecesi <b>{polynomial_degree}</b> için hesaplanan temel kararlılık değerleri:
+
+<br><br>
+
+<b>cond(A)</b> = {condition_A:.3e}  
+<br>
+<b>cond(AᵀA)</b> = {condition_ATA:.3e}  
+<br>
+<b>EKK ve QR katsayıları arasındaki göreli fark</b> = {coefficient_difference:.3e}
+
+<br><br>
+
+Normal denklem yönteminde çözüm:
+
+<br><br>
 
 $$
-cond(A^T A) = {condition_number:.3e}
+\\hat{{\\beta}} = (A^TA)^{{-1}}A^Ty
 $$
 
-Bu değer büyüdükçe klasik EKK yönteminde kullanılan normal denklem yaklaşımı 
-sayısal olarak hassaslaşır. QR ayrışımı ise problemi ortogonal dönüşümler üzerinden 
-çözdüğü için özellikle yüksek dereceli polinom regresyonlarında daha kararlı sonuçlar üretir.
-"""
+<br>
+
+formülüyle elde edilir. Ancak bu yaklaşımda $A^TA$ matrisi kurulduğu için sayısal kararlılık 
+zayıflayabilir. Özellikle yüksek dereceli polinomlarda Vandermonde matrisi kötü koşullu hale gelir.
+
+<br><br>
+
+QR ayrışımı ise:
+
+<br><br>
+
+$$
+A = QR
+$$
+
+<br>
+
+temeline dayanır ve $A^TA$ matrisini doğrudan oluşturmadan çözüm yaptığı için daha güvenilir 
+bir hesaplama yolu sunar.
+
+</div>
+""",
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# DOWNLOAD SECTION
+# ============================================================
+
+st.subheader("9. Sonuçları Dışa Aktar")
+
+result_df = pd.DataFrame(
+    {
+        "x": x_original,
+        "y": y,
+        "EKK_Tahmin": y_hat_ekk,
+        "QR_Tahmin": y_hat_qr,
+        "EKK_Kalıntı": y - y_hat_ekk,
+        "QR_Kalıntı": y - y_hat_qr,
+    }
+)
+
+csv = result_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="📥 Sonuçları CSV olarak indir",
+    data=csv,
+    file_name="ekk_qr_sonuclari.csv",
+    mime="text/csv"
 )
