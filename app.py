@@ -237,6 +237,14 @@ EKK yöntemi ile QR ayrışımı aynı ekranda karşılaştırılır.
 
 st.sidebar.header("⚙️ Kullanıcı Seçenekleri")
 
+st.sidebar.markdown("### 📎 Canva Sunumu")
+
+st.sidebar.image(
+    "qr_kod.png",
+    caption="Sunumu açmak için QR kodu okutun",
+    use_container_width=True
+)
+
 mode = st.sidebar.radio(
     "Veri giriş türü",
     [
