@@ -254,26 +254,26 @@ show_residuals = st.sidebar.checkbox("Residual çizgilerini göster", True)
 show_residual_chart = st.sidebar.checkbox("Residual bar grafiği göster", True)
 scale_x = st.sidebar.checkbox("x değerlerini standartlaştır", False)
 
+canva_link = "https://www.canva.com/design/DAHHPXzPv8s/KJexnacHpBUY-CYDl2ft4w/edit"
+
 st.sidebar.markdown("### 🎞️ Proje Sunumu")
 
-st.sidebar.image(
-    "qr_kod.png",
-    caption="Konu anlatımına gitmek için okutun",
-    use_container_width=True
-)
-
 st.sidebar.markdown(
-    """
-    <div style="
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.18);
-        border-radius: 12px;
-        padding: 10px;
-        text-align: center;
-        font-size: 13px;
-        color: #e5e7eb;">
-        📱 Telefon kamerası ile QR kodu okutabilirsiniz.
-    </div>
+    f"""
+    <a href="{canva_link}" target="_blank">
+        <img src="qr_kod.png" style="
+            width:100%;
+            border-radius:12px;
+            cursor:pointer;
+            transition:0.2s;
+        "
+        onmouseover="this.style.transform='scale(1.05)'"
+        onmouseout="this.style.transform='scale(1)'"
+        >
+    </a>
+    <p style="text-align:center; font-size:13px; opacity:0.8;">
+        QR'a tıkla veya telefonla okut 📱
+    </p>
     """,
     unsafe_allow_html=True
 )
