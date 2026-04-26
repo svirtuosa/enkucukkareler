@@ -237,14 +237,28 @@ EKK yöntemi ile QR ayrışımı aynı ekranda karşılaştırılır.
 
 st.sidebar.header("⚙️ Kullanıcı Seçenekleri")
 
-st.sidebar.markdown("### 📎 Canva Sunumu")
+mode = st.sidebar.radio(
+    "Veri giriş türü",
+    [
+        "1. Kendi gireceğim denklem",
+        "2. Noktaları kendim belirleyeceğim",
+        "3. Hazır veri setleri"
+    ]
+)
 
-st.sidebar.markdown("---")
+degree = st.sidebar.slider("Yaklaşım polinom derecesi", 1, 15, 3)
+
+show_ekk = st.sidebar.checkbox("EKK eğrisini göster", True)
+show_qr = st.sidebar.checkbox("QR eğrisini göster", True)
+show_residuals = st.sidebar.checkbox("Residual çizgilerini göster", True)
+show_residual_chart = st.sidebar.checkbox("Residual bar grafiği göster", True)
+scale_x = st.sidebar.checkbox("x değerlerini standartlaştır", False)
+
 st.sidebar.markdown("### 🎞️ Proje Sunumu")
 
 st.sidebar.image(
     "qr_kod.png",
-    caption="Canva sunumuna gitmek için okutun",
+    caption="Konu anlatımına gitmek için okutun",
     use_container_width=True
 )
 
@@ -263,23 +277,6 @@ st.sidebar.markdown(
     """,
     unsafe_allow_html=True
 )
-mode = st.sidebar.radio(
-    "Veri giriş türü",
-    [
-        "1. Kendi gireceğim denklem",
-        "2. Noktaları kendim belirleyeceğim",
-        "3. Hazır veri setleri"
-    ]
-)
-
-degree = st.sidebar.slider("Yaklaşım polinom derecesi", 1, 15, 3)
-
-show_ekk = st.sidebar.checkbox("EKK eğrisini göster", True)
-show_qr = st.sidebar.checkbox("QR eğrisini göster", True)
-show_residuals = st.sidebar.checkbox("Residual çizgilerini göster", True)
-show_residual_chart = st.sidebar.checkbox("Residual bar grafiği göster", True)
-scale_x = st.sidebar.checkbox("x değerlerini standartlaştır", False)
-
 
 # ============================================================
 # VERİ ÜRETME
