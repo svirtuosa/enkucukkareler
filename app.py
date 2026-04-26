@@ -239,12 +239,30 @@ st.sidebar.header("⚙️ Kullanıcı Seçenekleri")
 
 st.sidebar.markdown("### 📎 Canva Sunumu")
 
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🎞️ Proje Sunumu")
+
 st.sidebar.image(
     "qr_kod.png",
-    caption="Sunumu açmak için QR kodu okutun",
+    caption="Canva sunumuna gitmek için okutun",
     use_container_width=True
 )
 
+st.sidebar.markdown(
+    """
+    <div style="
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+        font-size: 13px;
+        color: #e5e7eb;">
+        📱 Telefon kamerası ile QR kodu okutabilirsiniz.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 mode = st.sidebar.radio(
     "Veri giriş türü",
     [
