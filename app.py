@@ -254,29 +254,44 @@ show_residuals = st.sidebar.checkbox("Residual çizgilerini göster", True)
 show_residual_chart = st.sidebar.checkbox("Residual bar grafiği göster", True)
 scale_x = st.sidebar.checkbox("x değerlerini standartlaştır", False)
 
+# Canva linkin
 canva_link = "https://www.canva.com/design/DAHHPXzPv8s/KJexnacHpBUY-CYDl2ft4w/edit"
 
 st.sidebar.markdown("### 🎞️ Proje Sunumu")
 
+# QR kodu base64'e çevir (HER ORTAMDA ÇALIŞIR)
+with open("qr_kod.png", "rb") as f:
+    qr_base64 = base64.b64encode(f.read()).decode()
+
+# Tıklanabilir QR
 st.sidebar.markdown(
     f"""
     <a href="{canva_link}" target="_blank">
-        <img src="qr_kod.png" style="
+        <img src="data:image/png;base64,{qr_base64}" style="
             width:100%;
-            border-radius:12px;
+            border-radius:14px;
             cursor:pointer;
-            transition:0.2s;
+            transition:0.25s;
+            box-shadow:0 6px 18px rgba(0,0,0,0.5);
         "
         onmouseover="this.style.transform='scale(1.05)'"
         onmouseout="this.style.transform='scale(1)'"
         >
     </a>
-    <p style="text-align:center; font-size:13px; opacity:0.8;">
+
+    <p style="
+        text-align:center;
+        font-size:13px;
+        margin-top:6px;
+        opacity:0.85;
+    ">
         QR'a tıkla veya telefonla okut 📱
     </p>
     """,
     unsafe_allow_html=True
 )
+
+
 
 # ============================================================
 # VERİ ÜRETME
